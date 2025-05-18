@@ -1,0 +1,4 @@
+respondent_id,country,age,education,years_coding,developer_type,languages,salary,currency,job_satisfaction,knows_css,knows_python,knows_sql,knows_javascript,knows_html,knows_r
+1,Spain,28,Bachelor's degree,5,Full-stack developer,"['JavaScript', 'Python', 'SQL']",45000,EUR,7,False,True,True,True,False,False
+2,Spain,35,Master's degree,10,Data scientist,"['Python', 'R', 'SQL']",58000,EUR,8,False,True,True,False,False,True
+3,Spain,24,Bachelor's degree,2,Frontend developer,"['JavaScript', 'HTML', 'CSS']",35000,EUR,6,True,False,False,True,True,False
