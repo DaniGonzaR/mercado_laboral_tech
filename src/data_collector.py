@@ -47,7 +47,7 @@ class JobDataCollector:
         else:
             logger.info("Usando API de Adzuna para obtener datos reales de empleo.")
     
-    def get_tech_jobs_adzuna(self, country_code='es', results_per_page=50, max_pages=5, 
+    def get_tech_jobs_adzuna(self, country_code='es', results_per_page=50, max_pages=20, 
                            what='developer OR programmer OR engineer OR data', 
                            where='madrid OR barcelona'):
         """
@@ -83,7 +83,8 @@ class JobDataCollector:
                     'what': what,
                     'where': where,
                     'page': page,
-                    'content-type': 'application/json'
+                    'content-type': 'application/json',
+                    'salary_include_unknown': 0  # No incluir ofertas sin salario
                 }
                 
                 response = requests.get(base_url, params=params)
@@ -123,6 +124,25 @@ class JobDataCollector:
         except Exception as e:
             logger.error(f"Error obteniendo datos de Adzuna: {str(e)}", exc_info=True)
             return pd.DataFrame()
+
+    def _process_adzuna_data(self, adzuna_jobs):
+        """Procesar datos de Adzuna para crear un DataFrame."""
+        processed_jobs = pd.DataFrame({
+            'id': [job.get('id') for job in adzuna_jobs],
+            'titulo': [job.get('title') for job in adzuna_jobs],
+            'descripcion': [job.get('description') for job in adzuna_jobs],
+            'empresa': [job.get('company', {}).get('display_name') for job in adzuna_jobs],
+            'ubicacion': [job.get('location', {}).get('display_name') for job in adzuna_jobs],
+            'tipo_contrato': [job.get('contract_type') for job in adzuna_jobs],
+            'salario': [job.get('salary_max') for job in adzuna_jobs], # O 'salary_min', o un promedio
+            'fecha_publicacion': [job.get('created') for job in adzuna_jobs],
+            'url': [job.get('redirect_url') for job in adzuna_jobs],
+        })
+        
+        # Agregar timestamp
+        processed_jobs['fecha_extraccion'] = datetime.now()
+        
+        return processed_jobs
     
     def get_tech_jobs(self, keywords='python developer', location='', results_per_page=50, max_pages=5):
         """
@@ -446,29 +466,21 @@ class JobDataCollector:
             
             # Crear oferta
             job = {
-                'titulo': np.random.choice(job_titles),
-                'empresa': np.random.choice(companies),
-                'ubicacion': np.random.choice(locations),
-                'fecha_publicacion': created_date.strftime("%Y-%m-%d"),
-                'tipo_contrato': np.random.choice(contract_types),
-                'jornada': np.random.choice(["Completa", "Parcial"]),
-                'salario': f"{salary_min:.0f} - {salary_max:.0f} €",
-                'salario_min': salary_min,
-                'salario_max': salary_max,
-                'salario_promedio': (salary_min + salary_max) / 2,
-                'descripcion': description,
-                'categoria': np.random.choice(categories),
-                'tecnologias': tech_description,
-                'url': f"https://www.ejemplo.com/job/{i+1000}",
                 'id': f"job-{i+1000}",
-                'fuente': 'Adzuna (Simulado)'
+                'title': np.random.choice(job_titles),
+                'description': description,
+                'company': {'display_name': np.random.choice(companies)},
+                'location': {'display_name': np.random.choice(locations)},
+                'contract_type': np.random.choice(contract_types),
+                'salary_max': salary_max,
+                'created': created_date.strftime("%Y-%m-%d"),
+                'redirect_url': f"https://www.ejemplo.com/job/{i+1000}",
             }
             
             mock_jobs.append(job)
         
         # Convertir a DataFrame
-        df = pd.DataFrame(mock_jobs)
-        df['fecha_extraccion'] = datetime.now()
+        df = self._process_adzuna_data(mock_jobs)
         
         # Guardar datos simulados
         output_path = os.path.join('data', 'raw', 'ofertas_adzuna_mock.csv')

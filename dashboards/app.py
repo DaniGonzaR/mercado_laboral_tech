@@ -16,6 +16,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import os
 import sys
+import re
 from datetime import datetime
 
 # Añadir directorio raíz al path para importar módulos del proyecto
@@ -76,7 +77,12 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# ============================
 # Funciones auxiliares
+# ============================
+import joblib
+
+MODEL_PATH = os.path.join('models', 'salary_model.joblib')
 def load_data():
     """Carga los datos procesados desde el directorio data/processed/"""
     try:
@@ -243,6 +249,172 @@ def run_dashboard():
     # Añadir separación
     st.markdown("<br>", unsafe_allow_html=True)
     
+        # ------------------------------
+    _old_sidebar_code = """
+    # Barra lateral: Predicción ML de salario
+    # ------------------------------
+
+    st.sidebar.markdown("## Predicción de salario (IA)")
+
+# Cargar el modelo si existe
+    model_metadata = None
+    if os.path.exists(MODEL_PATH):
+    try:
+        model_metadata = joblib.load(MODEL_PATH)
+    except Exception as e:
+        st.sidebar.error(f"Error al cargar el modelo: {e}")
+
+    if model_metadata is not None:
+    # Formulario de predicción
+            with st.sidebar.form(key='salary_predict_form'):
+        st.markdown("### Introduce las características de la oferta")
+
+        loc_col = model_metadata.get('location_col')
+        contract_col = model_metadata.get('contract_col')
+
+        # Inputs usando valores únicos del dataset
+        if loc_col and loc_col in jobs_df.columns:
+            location_input = st.selectbox("Ubicación", sorted(jobs_df[loc_col].dropna().unique()))
+        else:
+            location_input = None
+
+        if contract_col and contract_col in jobs_df.columns:
+            contract_input = st.selectbox("Tipo de Contrato/Jornada", sorted(jobs_df[contract_col].dropna().unique()))
+        else:
+            contract_input = None
+
+        # Tecnologías (multiselect)
+        tech_options_sidebar = sorted({t.strip() for ts in jobs_df['tecnologias'].dropna() for t in str(ts).split(',')}) if 'tecnologias' in jobs_df.columns else []
+        selected_tech_sidebar = st.multiselect("Tecnologías", tech_options_sidebar)
+
+        submit_btn = st.form_submit_button(label='Predecir Salario')
+
+        if submit_btn:
+        # Construir dataframe con los mismos features que el modelo
+        feature_dict = {}
+        if loc_col:
+            feature_dict[loc_col] = [location_input]
+        if contract_col:
+            feature_dict[contract_col] = [contract_input]
+        # Número de tecnologías
+        feature_dict['num_techs'] = [len(selected_tech_sidebar)]
+
+        import pandas as pd
+        input_df = pd.DataFrame(feature_dict)
+        predicted_salary = int(model_metadata['pipeline'].predict(input_df)[0])
+        st.sidebar.success(f"Salario estimado: {predicted_salary:,} €")
+
+        # Mostrar métricas de entrenamiento
+        mae = model_metadata['metrics']['mae']
+        r2 = model_metadata['metrics']['r2']
+        st.sidebar.caption(f"Modelo MAE: {mae:,.0f}  |  R²: {r2:.2f}")
+else:
+        st.sidebar.info("Modelo de predicción de salario no encontrado. Ejecuta: python src/model_salary.py para entrenarlo.")
+    """
+
+    # ------------------------------
+    # Barra lateral: Predicción de Salario (IA)
+    # ------------------------------
+
+    st.sidebar.markdown("## Predicción de salario (IA)")
+
+    # Cargar el modelo si existe
+    model_metadata = None
+    if os.path.exists(MODEL_PATH):
+        try:
+            model_metadata = joblib.load(MODEL_PATH)
+        except Exception as e:
+            st.sidebar.error(f"Error al cargar el modelo: {e}")
+
+    if model_metadata is not None:
+        with st.sidebar.form(key="salary_predict_form"):
+            st.markdown("### Introduce las características de la oferta")
+
+            loc_col = model_metadata.get("location_col")
+            contract_col = model_metadata.get("contract_col")
+
+            if loc_col and loc_col in jobs_df.columns:
+                location_input = st.selectbox("Ubicación", sorted(jobs_df[loc_col].dropna().unique()))
+            else:
+                location_input = None
+
+            if contract_col and contract_col in jobs_df.columns:
+                contract_input = st.selectbox("Tipo de Contrato/Jornada", sorted(jobs_df[contract_col].dropna().unique()))
+            else:
+                contract_input = None
+
+            tech_options_sidebar = (
+                sorted({t.strip() for ts in jobs_df['tecnologias'].dropna() for t in str(ts).split(',')})
+                if 'tecnologias' in jobs_df.columns else []
+            )
+            selected_tech_sidebar = st.multiselect("Tecnologías", tech_options_sidebar)
+
+            submit_btn = st.form_submit_button(label="Predecir Salario")
+
+        if submit_btn:
+            st.sidebar.info("--- MODO DEPURACIÓN ---")
+
+            feature_cols = model_metadata['feature_cols']
+            
+            # DEBUG 1: Mostrar las columnas de skills que el modelo espera
+            expected_skills = sorted([col for col in feature_cols if col.startswith('skill_')])
+            with st.sidebar.expander("Columnas de 'skill' esperadas por el modelo"):
+                st.json(expected_skills)
+
+            input_data = {}
+
+            # 1. Inicializar todas las características con valores por defecto
+            for col in feature_cols:
+                if col.startswith('skill_') or col in ['experience_years', 'seniority_senior', 'seniority_junior']:
+                    input_data[col] = 0
+                else:
+                    input_data[col] = jobs_df[col].mode()[0] if col in jobs_df and not jobs_df[col].empty else 'Desconocido'
+
+            # 2. Sobrescribir con la selección del usuario
+            loc_col_name = next((c for c in feature_cols if c in ['ubicacion', 'location']), None)
+            contract_col_name = next((c for c in feature_cols if c in ['tipo_contrato', 'jornada', 'contract_type']), None)
+            if loc_col_name and location_input:
+                input_data[loc_col_name] = location_input
+            if contract_col_name and contract_input:
+                input_data[contract_col_name] = contract_input
+
+            # 3. Procesar las tecnologías seleccionadas por el usuario
+            generated_skills = {}
+            for tech in selected_tech_sidebar:
+                base_name = f"skill_{tech.lower()}"
+                skill_col = re.sub(r'[^a-zA-Z0-9_]', '', base_name)
+                generated_skills[tech] = {
+                    "generated_name": skill_col,
+                    "is_in_model": skill_col in feature_cols
+                }
+                if skill_col in feature_cols:
+                    input_data[skill_col] = 1
+            
+            # DEBUG 2: Mostrar las skills generadas y si coinciden
+            with st.sidebar.expander("Skills generadas a partir de la selección"):
+                st.json(generated_skills)
+
+            # 4. Crear el DataFrame para la predicción
+            input_df = pd.DataFrame([input_data])
+            
+            # 5. Asegurar el orden correcto de las columnas
+            input_df = input_df[feature_cols]
+
+            # DEBUG 3: Mostrar el DataFrame final que se envía al modelo
+            with st.sidebar.expander("DataFrame final para predicción (solo skills activas)"):
+                active_skills_df = input_df[[col for col in feature_cols if col.startswith('skill_') and input_df[col].iloc[0] == 1]]
+                st.dataframe(active_skills_df)
+
+            predicted_salary = int(model_metadata['pipeline'].predict(input_df)[0])
+            st.sidebar.success(f"Salario estimado: {predicted_salary:,} €")
+
+            mae = model_metadata['metrics']['mae']
+            r2 = model_metadata['metrics']['r2']
+            st.sidebar.caption(f"Modelo MAE: {mae:,.0f}  |  R²: {r2:.2f}")
+            st.sidebar.info("--- FIN MODO DEPURACIÓN ---")
+    else:
+        st.sidebar.info("Modelo de predicción de salario no encontrado. Ejecuta: python src/model_salary.py para entrenarlo.")
+
     # Filtros en la barra lateral
     st.sidebar.markdown("## Filtros")
     
@@ -389,43 +561,30 @@ def run_dashboard():
                 marginal='box'
             )
             
-            # Añadir líneas para la media y mediana con anotaciones posicionadas para no solaparse
+            # Añadir líneas para la media y la mediana (una sola vez)
             mean_value = int(salary_filtered.mean())
             median_value = int(salary_filtered.median())
-            
+
             # Línea de la media
             fig.add_vline(
                 x=mean_value,
                 line_color='red',
                 line_dash='dash',
-                annotation=dict(
-                    text=f"Media: {mean_value:,}€",
-                    yshift=25,  # Desplazar hacia arriba
-                    showarrow=False,
-                    font=dict(color='red', size=12),
-                    bgcolor='rgba(255,255,255,0.8)',
-                    bordercolor='red',
-                    borderwidth=1,
-                    borderpad=4
-                )
+                annotation_text=f"Media: {mean_value:,}€",
+                annotation_position="top left",
+                row=2
             )
-            
+
             # Línea de la mediana
             fig.add_vline(
                 x=median_value,
                 line_color='green',
                 line_dash='dash',
-                annotation=dict(
-                    text=f"Mediana: {median_value:,}€",
-                    yshift=-25,  # Desplazar hacia abajo
-                    showarrow=False,
-                    font=dict(color='green', size=12),
-                    bgcolor='rgba(255,255,255,0.8)',
-                    bordercolor='green',
-                    borderwidth=1,
-                    borderpad=4
-                )
+                annotation_text=f"Mediana: {median_value:,}€",
+                annotation_position="bottom left",
+                row=2
             )
+
             
             fig.update_layout(
                 height=400,
@@ -480,19 +639,23 @@ def run_dashboard():
                     x=0.5
                 )
             )
-            
+
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.markdown("### 📝 Tipos de Contrato")
             st.info("No hay datos de tipos de contrato disponibles")
+
+            # Si no hay contract_col, no se genera gráfico pero mantiene estructura
+
+            
     
     # Sección de información adicional
-    st.markdown("<h2 class='sub-header'>Datos detallados</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 class='sub-header'>📊 Datos detallados</h2>", unsafe_allow_html=True)
     
-    # Mostrar datos en formato tabular
-    if st.checkbox("Mostrar tabla de datos"):
-        st.dataframe(filtered_df.head(100))
-        st.caption("Mostrando las primeras 100 filas. El conjunto completo tiene {:,} filas.".format(len(filtered_df)))
+    # Expander para vista tabular
+    with st.expander("🔍 Mostrar tabla de datos"):
+        st.dataframe(filtered_df, use_container_width=True)
+        st.caption(f"Total de filas: {len(filtered_df):,}")
     
     # Espacio adicional antes del footer
     st.markdown("<br>", unsafe_allow_html=True)

@@ -131,7 +131,19 @@ def run_real_data_collection():
             'backend developer',
             'machine learning', 
             'devops',
-            'full stack developer'
+            'full stack developer',
+            'cloud engineer', 
+            'cybersecurity', 
+            'data analyst', 
+            'mobile developer',
+            'react developer', 
+            'vue developer', 
+            'angular developer', 
+            'java developer',
+            'c# developer', 
+            'qa engineer', 
+            'SRE', 
+            'database administrator'
         ]
         
         logger.info("Obteniendo datos REALES de la web... (esto puede tardar un momento)")

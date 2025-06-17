@@ -33,54 +33,38 @@ def ensure_data_dirs():
 
 def extract_github_jobs():
     """
-    Extraer datos de empleos tecnológicos de la API de GitHub Jobs o fuente similar.
+    Extraer datos de empleos tecnológicos desde el archivo de datos reales.
     
     Returns:
         pd.DataFrame: DataFrame que contiene datos brutos de empleos
     """
-    logger.info("Extrayendo datos de empleos de GitHub...")
+    logger.info("Extrayendo datos de ofertas de empleo reales...")
     
     # Verificar/crear directorios
     ensure_data_dirs()
     
     # Path para datos brutos de ofertas de trabajo
-    potential_paths = [
-        os.path.join('data', 'raw', 'ofertas_adzuna_mock.csv'),  # Primera opción: datos de API
-        os.path.join('data', 'raw', 'ofertas_infojobs.csv'),      # Segunda opción: datos de scraping
-        os.path.join('data', 'raw', 'ofertas_tecnologia_simuladas.csv')  # Tercera opción: datos simulados
-    ]
+    real_data_path = os.path.join('data', 'raw', 'ofertas_tech_reales.csv')
     
-    # Path para datos brutos (por compatibilidad)
-    raw_data_path = os.path.join('data', 'raw', 'github_jobs_raw.csv')
-    
-    # Buscar datos existentes
-    found_data = False
-    jobs_data = None
-    
-    for path in potential_paths:
-        if os.path.exists(path):
-            try:
-                # Cargar datos existentes
-                logger.info(f"Cargando datos de ofertas desde {path}")
-                jobs_data = pd.read_csv(path)
-                if not jobs_data.empty:
-                    found_data = True
-                    
-                    # También guardar una copia con nombre estándar para compatibilidad
-                    jobs_data.to_csv(raw_data_path, index=False)
-                    logger.info(f"Datos brutos guardados en {raw_data_path}")
-                    break
-            except Exception as e:
-                logger.error(f"Error cargando {path}: {str(e)}")
-    
-    # Si no se encontraron datos, generar datos simulados
-    if not found_data:
-        logger.info("No se encontraron datos existentes. Generando datos simulados...")
-        jobs_data = generate_mock_jobs_data()
-        jobs_data.to_csv(raw_data_path, index=False)
-        logger.info(f"Datos simulados guardados en {raw_data_path}")
-    
-    return jobs_data
+    # Buscar el archivo de datos reales
+    if os.path.exists(real_data_path):
+        try:
+            logger.info(f"Cargando datos de ofertas desde {real_data_path}")
+            jobs_data = pd.read_csv(real_data_path)
+            if not jobs_data.empty:
+                logger.info(f"Cargados {len(jobs_data)} registros de ofertas de empleo.")
+                return jobs_data
+            else:
+                logger.warning(f"El archivo de datos reales {real_data_path} está vacío.")
+                return pd.DataFrame()
+        except Exception as e:
+            logger.error(f"Error cargando {real_data_path}: {str(e)}")
+            return pd.DataFrame()
+    else:
+        # Si no se encontraron datos, devolver un DataFrame vacío y un error.
+        logger.error(f"No se encontró el archivo de datos reales en: {real_data_path}")
+        logger.error("Por favor, ejecute primero la recolección de datos con 'python main.py --datos-reales'")
+        return pd.DataFrame()
 
 def extract_stackoverflow_survey():
     """
@@ -148,7 +132,7 @@ def extract_stackoverflow_survey():
 
 def transform_job_data(jobs_df):
     """
-    Transformar datos brutos de empleos a un formato limpio.
+    Transformar datos brutos de empleos a un formato limpio, manejando rangos de salario.
     
     Args:
         jobs_df (pd.DataFrame): DataFrame bruto de empleos
@@ -158,34 +142,65 @@ def transform_job_data(jobs_df):
     """
     logger.info("Transformando datos de empleos...")
     
-    # Make a copy to avoid modifying the original
+    # Crear una copia para evitar modificar el original
     df = jobs_df.copy()
-    
-    # Convertir cadenas de fecha a datetime si existe la columna
+
+    # Convertir cadenas de fecha a datetime, manejando errores de formato
     if 'created_at' in df.columns:
-        df['created_at'] = pd.to_datetime(df['created_at'])
+        df['created_at'] = pd.to_datetime(df['created_at'], errors='coerce')
     elif 'fecha_publicacion' in df.columns:
-        df['fecha_publicacion'] = pd.to_datetime(df['fecha_publicacion'])
+        df['fecha_publicacion'] = pd.to_datetime(df['fecha_publicacion'], errors='coerce')
         # Crear campo 'created_at' para mantener compatibilidad
         df['created_at'] = df['fecha_publicacion']
-    
-    # Convertir salario a numérico dependiendo de qué columnas existan
-    if 'salary' in df.columns:
+
+    # Limpiar y estandarizar salarios
+    def clean_salary(salary_value):
+        if not isinstance(salary_value, str):
+            return salary_value # Devolver si ya es numérico o NaN
+        
+        # Eliminar símbolos de moneda y comas
+        salary_text = salary_value.replace('$', '').replace(',', '').replace('€', '').strip()
+        
+        # Si es un rango, calcular el promedio
+        if '-' in salary_text:
+            parts = salary_text.split('-')
+            try:
+                low = float(parts[0].strip())
+                high = float(parts[1].strip())
+                return (low + high) / 2
+            except (ValueError, IndexError):
+                return None # No se pudo convertir a número
+        else:
+            # Si es un solo valor, convertirlo a número
+            try:
+                return float(salary_text)
+            except ValueError:
+                return None # No se pudo convertir
+
+    # Detectar y unificar la columna de salario
+    salary_col_name = None
+    for col in ['salario', 'salary', 'salario_promedio']:
+        if col in df.columns:
+            salary_col_name = col
+            break
+
+    if salary_col_name:
+        df[salary_col_name] = df[salary_col_name].apply(clean_salary)
+        # Renombrar a 'salary' para estandarizar
+        if salary_col_name != 'salary':
+            df.rename(columns={salary_col_name: 'salary'}, inplace=True)
         df['salary'] = pd.to_numeric(df['salary'], errors='coerce')
-    elif 'salario_promedio' in df.columns:
-        df['salario_promedio'] = pd.to_numeric(df['salario_promedio'], errors='coerce')
-        # Crear campo 'salary' para mantener compatibilidad
-        df['salary'] = df['salario_promedio']
     
     # Manejar listas de tecnologías
-    if 'technology' in df.columns and isinstance(df['technology'].iloc[0], list):
+    if 'technology' in df.columns and not df['technology'].isnull().all() and isinstance(df['technology'].dropna().iloc[0], list):
         # Crear columnas de presencia de tecnología
         techs = set()
-        for tech_list in df['technology']:
-            techs.update(tech_list)
+        for tech_list in df['technology'].dropna():
+            if isinstance(tech_list, list):
+                techs.update(tech_list)
         
         for tech in techs:
-            df[f'has_{tech.lower()}'] = df['technology'].apply(lambda x: tech in x)
+            df[f'has_{tech.lower()}'] = df['technology'].apply(lambda x: tech in x if isinstance(x, list) else False)
     
     return df
 
