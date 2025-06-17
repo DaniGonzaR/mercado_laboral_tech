@@ -64,47 +64,33 @@ El proyecto prioriza datos REALES del mercado laboral tecnológico obtenidos de:
 ### Instalación
 
 1. Clona el repositorio:
-   ```bash
-   git clone [URL_DEL_REPOSITORIO]
+   git clone https://github.com/DaniGonzaR/mercado_laboral_tech
    cd mercado_laboral_tech
-   ```
 
 2. Crea y activa un entorno virtual:
-   ```bash
    python -m venv venv
    .\venv\Scripts\activate  # Windows
    source venv/bin/activate  # Linux/Mac
-   ```
 
 3. Instala las dependencias:
-   ```bash
    pip install -r requirements.txt
-   ```
 
 ### Uso
 
 #### Recopilación de Datos REALES
 
-```bash
-# Recolectar datos REALES del mercado laboral tecnológico
 python main.py --real-data
-```
 
 #### Pipeline Completo
 
-```bash
 python main.py --all
-```
 
 #### Dashboard Interactivo
 
-```bash
 streamlit run dashboards/app.py
-```
 
 #### Componentes Individuales
 
-```bash
 # Recolectar datos REALES
 python main.py --real-data
 
@@ -116,7 +102,6 @@ python main.py --eda
 
 # Ejecutar notebook de análisis
 jupyter notebook notebooks/exploratory_analysis.ipynb
-```
 
 #### Parámetros Importantes
 
@@ -126,7 +111,6 @@ jupyter notebook notebooks/exploratory_analysis.ipynb
 
 ## Estructura del Proyecto
 
-```
 mercado_laboral_tech/
 ├── data/               # Archivos de datos
 │   ├── raw/            # Datos sin procesar (incluye datos de web scraping)
@@ -152,7 +136,6 @@ mercado_laboral_tech/
 ├── requirements.txt    # Dependencias del proyecto
 ├── .gitignore         # Archivos a ignorar en git
 └── README.md          # Documentación del proyecto
-```
 
 ## Configuración
 
@@ -233,9 +216,8 @@ Se ha creado un dashboard interactivo con Streamlit que permite explorar visualm
 - **Filtros interactivos** por ubicación, tipo de contrato y tecnología
 
 Para ejecutar el dashboard:
-```bash
+
 streamlit run dashboards/app.py
-```
 
 ## Replicación y Entrega del Proyecto
 
@@ -253,25 +235,17 @@ streamlit run dashboards/app.py
 4. Comprime el proyecto completo para su entrega
 
 1. **Clonar el repositorio**:
-   ```
    git clone https://github.com/DaniGonzaR/mercado_laboral_tech.git
    cd mercado_laboral_tech
-   ```
 
 2. **Instalar dependencias**:
-   ```
    pip install -r requirements.txt
-   ```
 
 3. **Ejecutar el pipeline completo**:
-   ```
    python main.py
-   ```
 
-4. **Explorar los notebooks** (opcional):
-   ```
+4. **Explorar los notebooks**:
    jupyter notebook notebooks/
-   ```
 
 5. **Abrir el dashboard** en Streamlit utilizando el archivo en el directorio `dashboards/app.py`.
 
