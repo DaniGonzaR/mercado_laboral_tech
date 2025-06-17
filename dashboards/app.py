@@ -139,22 +139,45 @@ def determine_location_column(jobs_df):
 
 def is_real_data(jobs_df):
     """Determina si los datos son reales o simulados"""
-    if 'fuente' not in jobs_df.columns:
-        return "Desconocido"
+    # Si existe una columna 'source_api' y tiene valores, son datos reales
+    if 'source_api' in jobs_df.columns and jobs_df['source_api'].notna().any():
+        return True
     
-    # Verificar las fuentes de datos
-    sources = jobs_df['fuente'].astype(str).str.lower()
-    
-    if sources.str.contains('simulado').any():
-        simulated_count = sources.str.contains('simulado').sum()
-        total_count = len(jobs_df)
-        if simulated_count == total_count:
-            return "100% Simulados"
-        else:
-            real_percentage = round(100 - (simulated_count / total_count * 100), 1)
-            return f"{real_percentage}% Reales, {100-real_percentage}% Simulados"
-    else:
-        return "100% Reales"
+    # Si no, comprobamos si las columnas clave de datos reales existen
+    real_data_cols = ['titulo', 'empresa', 'ubicacion', 'salario_promedio', 'url_oferta']
+    if all(col in jobs_df.columns for col in real_data_cols):
+        # Y si al menos una de ellas tiene datos no nulos
+        if any(jobs_df[col].notna().any() for col in real_data_cols):
+            return True
+            
+    return False
+
+@st.cache_data
+def get_important_skill_features(_pipeline, _trained_at):
+    """
+    Analiza el modelo entrenado para encontrar qué características de 'skill' tienen
+    una importancia no nula y, por lo tanto, afectan a la predicción.
+    Utiliza el caché de Streamlit para mejorar el rendimiento.
+    """
+    try:
+        preprocessor = _pipeline.named_steps['preprocessor']
+        model = _pipeline.named_steps['model']
+        
+        # Obtener los nombres de las características después de la transformación del preprocesador
+        feature_names_out = preprocessor.get_feature_names_out()
+        importances = model.feature_importances_
+        
+        important_features = []
+        for name, imp in zip(feature_names_out, importances):
+            # Las skills se tratan como numéricas y el ColumnTransformer les añade el prefijo 'num__'
+            if name.startswith('num__skill_') and imp > 1e-6: # Usar un umbral pequeño para evitar ruido de punto flotante
+                # Quitar el prefijo para obtener el nombre original de la característica
+                important_features.append(name.replace('num__', ''))
+        
+        return important_features
+    except (KeyError, AttributeError):
+        # Manejar el caso en que la estructura del pipeline no sea la esperada
+        return []
 
 # Función principal del dashboard
 def run_dashboard():
@@ -179,7 +202,7 @@ def run_dashboard():
     st.markdown("<h1 class='main-header'>Dashboard del Mercado Laboral Tecnológico</h1>", unsafe_allow_html=True)
     
     # Información sobre el tipo de datos
-    data_status = "🟢 DATOS REALES" if "100% Reales" in data_type else "🟠 DATOS MIXTOS" if "Reales" in data_type else "🔴 DATOS SIMULADOS"
+    data_status = "🟢 DATOS REALES" if data_type else "🔴 DATOS SIMULADOS"
     st.markdown(f"<p style='text-align: center; font-size: 1.2rem;'><strong>{data_status}</strong> - Análisis de {len(jobs_df)} ofertas de empleo</p>", unsafe_allow_html=True)
     
     # Métricas generales
@@ -249,69 +272,6 @@ def run_dashboard():
     # Añadir separación
     st.markdown("<br>", unsafe_allow_html=True)
     
-        # ------------------------------
-    _old_sidebar_code = """
-    # Barra lateral: Predicción ML de salario
-    # ------------------------------
-
-    st.sidebar.markdown("## Predicción de salario (IA)")
-
-# Cargar el modelo si existe
-    model_metadata = None
-    if os.path.exists(MODEL_PATH):
-    try:
-        model_metadata = joblib.load(MODEL_PATH)
-    except Exception as e:
-        st.sidebar.error(f"Error al cargar el modelo: {e}")
-
-    if model_metadata is not None:
-    # Formulario de predicción
-            with st.sidebar.form(key='salary_predict_form'):
-        st.markdown("### Introduce las características de la oferta")
-
-        loc_col = model_metadata.get('location_col')
-        contract_col = model_metadata.get('contract_col')
-
-        # Inputs usando valores únicos del dataset
-        if loc_col and loc_col in jobs_df.columns:
-            location_input = st.selectbox("Ubicación", sorted(jobs_df[loc_col].dropna().unique()))
-        else:
-            location_input = None
-
-        if contract_col and contract_col in jobs_df.columns:
-            contract_input = st.selectbox("Tipo de Contrato/Jornada", sorted(jobs_df[contract_col].dropna().unique()))
-        else:
-            contract_input = None
-
-        # Tecnologías (multiselect)
-        tech_options_sidebar = sorted({t.strip() for ts in jobs_df['tecnologias'].dropna() for t in str(ts).split(',')}) if 'tecnologias' in jobs_df.columns else []
-        selected_tech_sidebar = st.multiselect("Tecnologías", tech_options_sidebar)
-
-        submit_btn = st.form_submit_button(label='Predecir Salario')
-
-        if submit_btn:
-        # Construir dataframe con los mismos features que el modelo
-        feature_dict = {}
-        if loc_col:
-            feature_dict[loc_col] = [location_input]
-        if contract_col:
-            feature_dict[contract_col] = [contract_input]
-        # Número de tecnologías
-        feature_dict['num_techs'] = [len(selected_tech_sidebar)]
-
-        import pandas as pd
-        input_df = pd.DataFrame(feature_dict)
-        predicted_salary = int(model_metadata['pipeline'].predict(input_df)[0])
-        st.sidebar.success(f"Salario estimado: {predicted_salary:,} €")
-
-        # Mostrar métricas de entrenamiento
-        mae = model_metadata['metrics']['mae']
-        r2 = model_metadata['metrics']['r2']
-        st.sidebar.caption(f"Modelo MAE: {mae:,.0f}  |  R²: {r2:.2f}")
-else:
-        st.sidebar.info("Modelo de predicción de salario no encontrado. Ejecuta: python src/model_salary.py para entrenarlo.")
-    """
-
     # ------------------------------
     # Barra lateral: Predicción de Salario (IA)
     # ------------------------------
@@ -327,7 +287,26 @@ else:
             st.sidebar.error(f"Error al cargar el modelo: {e}")
 
     if model_metadata is not None:
-        with st.sidebar.form(key="salary_predict_form"):
+        # Analizar el modelo para encontrar las tecnologías que realmente impactan la predicción
+        pipeline = model_metadata['pipeline']
+        trained_at = model_metadata['trained_at']
+        important_skill_features = get_important_skill_features(pipeline, trained_at)
+
+        # Obtener todas las tecnologías únicas de los datos
+        all_techs = sorted({
+            t.strip() for ts in jobs_df['tecnologias'].dropna() 
+            for t in str(ts).split(',') if t.strip()
+        })
+        
+        # Filtrar la lista de tecnologías para mostrar solo las que son importantes para el modelo
+        tech_options_sidebar = []
+        for tech in all_techs:
+            base_name = f"skill_{tech.lower()}"
+            skill_col = re.sub(r'[^a-zA-Z0-9_]', '', base_name)
+            if skill_col in important_skill_features:
+                tech_options_sidebar.append(tech)
+
+        with st.sidebar.form(key='prediction_form'):
             st.markdown("### Introduce las características de la oferta")
 
             loc_col = model_metadata.get("location_col")
@@ -343,56 +322,48 @@ else:
             else:
                 contract_input = None
 
-            tech_options_sidebar = (
-                sorted({t.strip() for ts in jobs_df['tecnologias'].dropna() for t in str(ts).split(',')})
-                if 'tecnologias' in jobs_df.columns else []
+            selected_tech_sidebar = st.multiselect(
+                "Tecnologías (solo con impacto en salario)", 
+                tech_options_sidebar,
+                help="Esta lista solo contiene tecnologías que el modelo ha identificado como influyentes en el salario."
             )
-            selected_tech_sidebar = st.multiselect("Tecnologías", tech_options_sidebar)
 
             submit_btn = st.form_submit_button(label="Predecir Salario")
 
         if submit_btn:
-            st.sidebar.info("--- MODO DEPURACIÓN ---")
-
             feature_cols = model_metadata['feature_cols']
-            
-            # DEBUG 1: Mostrar las columnas de skills que el modelo espera
-            expected_skills = sorted([col for col in feature_cols if col.startswith('skill_')])
-            with st.sidebar.expander("Columnas de 'skill' esperadas por el modelo"):
-                st.json(expected_skills)
-
             input_data = {}
 
             # 1. Inicializar todas las características con valores por defecto
             for col in feature_cols:
                 if col.startswith('skill_') or col in ['experience_years', 'seniority_senior', 'seniority_junior']:
-                    input_data[col] = 0
+                    input_data[col] = 0  # Default para numéricas y skills
                 else:
+                    # Default para categóricas (usamos la moda)
                     input_data[col] = jobs_df[col].mode()[0] if col in jobs_df and not jobs_df[col].empty else 'Desconocido'
 
             # 2. Sobrescribir con la selección del usuario
             loc_col_name = next((c for c in feature_cols if c in ['ubicacion', 'location']), None)
             contract_col_name = next((c for c in feature_cols if c in ['tipo_contrato', 'jornada', 'contract_type']), None)
+
             if loc_col_name and location_input:
                 input_data[loc_col_name] = location_input
             if contract_col_name and contract_input:
                 input_data[contract_col_name] = contract_input
+            # El título se mantiene con el valor por defecto (la moda), ya que no es un input del usuario.
 
             # 3. Procesar las tecnologías seleccionadas por el usuario
-            generated_skills = {}
+            #    La lógica de limpieza DEBE ser idéntica a la de model_salary.py
             for tech in selected_tech_sidebar:
+                # Se crea el nombre de la columna aplicando la misma limpieza que en el entrenamiento
+                # para asegurar la correspondencia.
+                # 1. Prefijo 'skill_' + tecnología en minúsculas.
+                # 2. Limpieza con regex para eliminar caracteres no alfanuméricos (excepto '_').
                 base_name = f"skill_{tech.lower()}"
                 skill_col = re.sub(r'[^a-zA-Z0-9_]', '', base_name)
-                generated_skills[tech] = {
-                    "generated_name": skill_col,
-                    "is_in_model": skill_col in feature_cols
-                }
+                
                 if skill_col in feature_cols:
                     input_data[skill_col] = 1
-            
-            # DEBUG 2: Mostrar las skills generadas y si coinciden
-            with st.sidebar.expander("Skills generadas a partir de la selección"):
-                st.json(generated_skills)
 
             # 4. Crear el DataFrame para la predicción
             input_df = pd.DataFrame([input_data])
@@ -400,18 +371,12 @@ else:
             # 5. Asegurar el orden correcto de las columnas
             input_df = input_df[feature_cols]
 
-            # DEBUG 3: Mostrar el DataFrame final que se envía al modelo
-            with st.sidebar.expander("DataFrame final para predicción (solo skills activas)"):
-                active_skills_df = input_df[[col for col in feature_cols if col.startswith('skill_') and input_df[col].iloc[0] == 1]]
-                st.dataframe(active_skills_df)
-
             predicted_salary = int(model_metadata['pipeline'].predict(input_df)[0])
             st.sidebar.success(f"Salario estimado: {predicted_salary:,} €")
 
             mae = model_metadata['metrics']['mae']
             r2 = model_metadata['metrics']['r2']
             st.sidebar.caption(f"Modelo MAE: {mae:,.0f}  |  R²: {r2:.2f}")
-            st.sidebar.info("--- FIN MODO DEPURACIÓN ---")
     else:
         st.sidebar.info("Modelo de predicción de salario no encontrado. Ejecuta: python src/model_salary.py para entrenarlo.")
 

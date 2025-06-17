@@ -11,6 +11,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 import logging
+import re
 
 import joblib
 import pandas as pd
@@ -89,6 +90,28 @@ def train_salary_model(data_path: Path = DATA_PATH, model_path: Path = MODEL_PAT
     if data.empty:
         logger.error("No hay datos de salario válidos para entrenar el modelo después de eliminar nulos.")
         return
+
+    # Feature Engineering: Crear columnas 'skill_' a partir de 'tecnologias'
+    if 'tecnologias' in data.columns:
+        # Rellenar NaNs para evitar errores y obtener dummies
+        tech_dummies = data['tecnologias'].fillna('').str.get_dummies(sep=',')
+        
+        # Limpiar los nombres de las columnas para que sean válidos y consistentes
+        cleaned_cols = {}
+        for col in tech_dummies.columns:
+            if col.strip(): # Ignorar columnas vacías que pueden surgir de comas extra
+                cleaned_name = f"skill_{re.sub(r'[^a-zA-Z0-9_]', '', col.strip().lower())}"
+                # Si el nombre ya existe, suma las columnas (ej. 'python' y 'Python')
+                if cleaned_name in cleaned_cols:
+                    cleaned_cols[cleaned_name] = cleaned_cols[cleaned_name] + tech_dummies[col]
+                else:
+                    cleaned_cols[cleaned_name] = tech_dummies[col]
+        
+        if cleaned_cols:
+            tech_dummies = pd.DataFrame(cleaned_cols)
+            # Unir los dummies al dataframe principal
+            data = pd.concat([data, tech_dummies], axis=1)
+            logger.info(f"Creadas {len(tech_dummies.columns)} columnas de skills a partir de 'tecnologias'.")
 
     # Definir las características (features) dinámicamente
     features = []
