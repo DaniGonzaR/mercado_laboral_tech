@@ -129,10 +129,17 @@ def train_salary_model(data_path: Path = DATA_PATH, model_path: Path = MODEL_PAT
     if not salary_col:
         logger.error("No se encontró una columna de salario válida.")
         return
-    
+
+    # --- Limpieza de datos de salario ---
+    logger.info(f"Limpiando la columna de salarios '{salary_col}'...")
+    df[salary_col] = pd.to_numeric(df[salary_col], errors='coerce')
+    original_rows = len(df)
     df.dropna(subset=[salary_col], inplace=True)
+    new_rows = len(df)
+    logger.info(f"Se eliminaron {original_rows - new_rows} filas sin datos de salario válidos. Quedan {new_rows} filas.")
+
     if df.empty:
-        logger.error("No hay datos de salario válidos para entrenar.")
+        logger.error("No hay datos de salario válidos para entrenar después de la limpieza.")
         return
 
     categorical_features = [col for col in [title_col, location_col, contract_col] if col]

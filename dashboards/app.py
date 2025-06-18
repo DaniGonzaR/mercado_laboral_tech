@@ -212,9 +212,16 @@ def run_dashboard():
     if jobs_df is None:
         return
     
-    # Determinar columnas para análisis
+    # Determinar dinámicamente las columnas a usar
     salary_col = determine_salary_column(jobs_df)
+
+    # Filtrar para usar solo datos con información de salario
+    if salary_col:
+        jobs_df[salary_col] = pd.to_numeric(jobs_df[salary_col], errors='coerce')
+        jobs_df = jobs_df.dropna(subset=[salary_col])
+
     location_col = determine_location_column(jobs_df)
+    contract_col = determine_contract_column(jobs_df)
     
     # Extraer tecnologías si no tenemos tech_counts_df
     if tech_counts_df is None:
