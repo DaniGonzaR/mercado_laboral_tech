@@ -602,14 +602,29 @@ def run_dashboard():
             st.plotly_chart(fig, use_container_width=True)
             
             # Estadísticas salariales complementarias
-            stat_col1, stat_col2 = st.columns(2)
-            
-            with stat_col1:
-                st.metric("Rango salarial", f"{int(salary_filtered.max() - salary_filtered.min()):,}€")
-                st.metric("Mínimo", f"{int(salary_filtered.min()):,}€")
-            with stat_col2:
-                st.metric("Desviación estándar", f"{int(salary_filtered.std()):,}€")
-                st.metric("Máximo", f"{int(salary_filtered.max()):,}€")
+            if not salary_filtered.empty:
+                stat_col1, stat_col2 = st.columns(2)
+                
+                # Calcular métricas
+                s_min = salary_filtered.min()
+                s_max = salary_filtered.max()
+                s_std = salary_filtered.std()
+                s_range = s_max - s_min
+
+                # Formatear para visualización, manejando NaNs
+                range_str = f"{int(s_range):,}€" if pd.notna(s_range) else "N/A"
+                min_str = f"{int(s_min):,}€" if pd.notna(s_min) else "N/A"
+                std_str = f"{int(s_std):,}€" if pd.notna(s_std) else "N/A"
+                max_str = f"{int(s_max):,}€" if pd.notna(s_max) else "N/A"
+
+                with stat_col1:
+                    st.metric("Rango salarial", range_str)
+                    st.metric("Mínimo", min_str)
+                with stat_col2:
+                    st.metric("Desviación estándar", std_str)
+                    st.metric("Máximo", max_str)
+            else:
+                st.info("No hay suficientes datos de salario para mostrar estadísticas con los filtros seleccionados.")
         else:
             st.markdown("### 💰 Distribución de Salarios")
             st.info("No hay datos de salario disponibles")
