@@ -137,6 +137,32 @@ def determine_location_column(jobs_df):
             return col
     return None
 
+def determine_contract_column(jobs_df):
+    """Determina qué columna usar para datos de tipo de contrato"""
+    contract_cols = ['tipo_contrato', 'jornada', 'contract_type']
+    for col in contract_cols:
+        if col in jobs_df.columns and not jobs_df[col].isna().all():
+            return col
+    return None
+
+def determine_location_column(df):
+    """Determina dinámicamente el nombre de la columna de ubicación."""
+    if 'ubicacion' in df.columns:
+        return 'ubicacion'
+    elif 'location' in df.columns:
+        return 'location'
+    return None
+
+def determine_contract_column(df):
+    """Determina dinámicamente el nombre de la columna de tipo de contrato."""
+    if 'tipo_contrato' in df.columns:
+        return 'tipo_contrato'
+    elif 'jornada' in df.columns:
+        return 'jornada'
+    elif 'contract_type' in df.columns:
+        return 'contract_type'
+    return None
+
 def is_real_data(jobs_df):
     """Determina si los datos son reales o simulados"""
     # Si existe una columna 'source_api' y tiene valores, son datos reales
@@ -272,11 +298,36 @@ def run_dashboard():
     # Añadir separación
     st.markdown("<br>", unsafe_allow_html=True)
     
+    # Filtros en la barra lateral (para los gráficos)
+    st.sidebar.markdown("## Filtros")
+    
+    # Filtro por ubicación
+    location_options = ['Todas'] + sorted(jobs_df[location_col].dropna().unique()) if location_col else ['Todas']
+    selected_location = st.sidebar.selectbox("Ubicación", location_options)
+    
+    # Filtro por tipo de contrato
+    contract_col = determine_contract_column(jobs_df)
+    if contract_col:
+        contract_options = ['Todos'] + sorted(jobs_df[contract_col].dropna().unique())
+        selected_contract = st.sidebar.selectbox("Tipo de Contrato", contract_options)
+    else:
+        selected_contract = "Todos"
+    
+    # Filtro por tecnología
+    if 'tecnologias' in jobs_df.columns:
+        all_techs = set()
+        for techs in jobs_df['tecnologias'].dropna():
+            if isinstance(techs, str):
+                all_techs.update([t.strip() for t in techs.split(',') if t.strip()])
+        tech_options = ['Todas'] + sorted(all_techs)
+        selected_tech = st.sidebar.selectbox("Tecnología", tech_options)
+    else:
+        selected_tech = "Todas"
+
     # ------------------------------
     # Barra lateral: Predicción de Salario (IA)
     # ------------------------------
-
-    st.sidebar.markdown("## Predicción de salario (IA)")
+    st.sidebar.markdown("## 🔮 Predicción de salario (IA)")
 
     # Cargar el modelo si existe
     model_metadata = None
@@ -293,14 +344,14 @@ def run_dashboard():
         important_skill_features = get_important_skill_features(pipeline, trained_at)
 
         # Obtener todas las tecnologías únicas de los datos
-        all_techs = sorted({
+        all_techs_pred = sorted({
             t.strip() for ts in jobs_df['tecnologias'].dropna() 
             for t in str(ts).split(',') if t.strip()
         })
         
         # Filtrar la lista de tecnologías para mostrar solo las que son importantes para el modelo
         tech_options_sidebar = []
-        for tech in all_techs:
+        for tech in all_techs_pred:
             base_name = f"skill_{tech.lower()}"
             skill_col = re.sub(r'[^a-zA-Z0-9_]', '', base_name)
             if skill_col in important_skill_features:
@@ -309,16 +360,16 @@ def run_dashboard():
         with st.sidebar.form(key='prediction_form'):
             st.markdown("### Introduce las características de la oferta")
 
-            loc_col = model_metadata.get("location_col")
-            contract_col = model_metadata.get("contract_col")
+            loc_col_pred = model_metadata.get("location_col")
+            contract_col_pred = model_metadata.get("contract_col")
 
-            if loc_col and loc_col in jobs_df.columns:
-                location_input = st.selectbox("Ubicación", sorted(jobs_df[loc_col].dropna().unique()))
+            if loc_col_pred and loc_col_pred in jobs_df.columns:
+                location_input = st.selectbox("Ubicación", sorted(jobs_df[loc_col_pred].dropna().unique()), key='pred_loc')
             else:
                 location_input = None
 
-            if contract_col and contract_col in jobs_df.columns:
-                contract_input = st.selectbox("Tipo de Contrato/Jornada", sorted(jobs_df[contract_col].dropna().unique()))
+            if contract_col_pred and contract_col_pred in jobs_df.columns:
+                contract_input = st.selectbox("Tipo de Contrato/Jornada", sorted(jobs_df[contract_col_pred].dropna().unique()), key='pred_contract')
             else:
                 contract_input = None
 
@@ -353,12 +404,7 @@ def run_dashboard():
             # El título se mantiene con el valor por defecto (la moda), ya que no es un input del usuario.
 
             # 3. Procesar las tecnologías seleccionadas por el usuario
-            #    La lógica de limpieza DEBE ser idéntica a la de model_salary.py
             for tech in selected_tech_sidebar:
-                # Se crea el nombre de la columna aplicando la misma limpieza que en el entrenamiento
-                # para asegurar la correspondencia.
-                # 1. Prefijo 'skill_' + tecnología en minúsculas.
-                # 2. Limpieza con regex para eliminar caracteres no alfanuméricos (excepto '_').
                 base_name = f"skill_{tech.lower()}"
                 skill_col = re.sub(r'[^a-zA-Z0-9_]', '', base_name)
                 
@@ -379,37 +425,6 @@ def run_dashboard():
             st.sidebar.caption(f"Modelo MAE: {mae:,.0f}  |  R²: {r2:.2f}")
     else:
         st.sidebar.info("Modelo de predicción de salario no encontrado. Ejecuta: python src/model_salary.py para entrenarlo.")
-
-    # Filtros en la barra lateral
-    st.sidebar.markdown("## Filtros")
-    
-    # Filtro por ubicación
-    if location_col:
-        locations = ['Todas'] + sorted(jobs_df[location_col].dropna().unique().tolist())
-        selected_location = st.sidebar.selectbox("Ubicación", locations)
-    else:
-        selected_location = "Todas"
-    
-    # Filtro por tipo de contrato
-    if 'tipo_contrato' in jobs_df.columns:
-        contract_types = ['Todos'] + sorted(jobs_df['tipo_contrato'].dropna().unique().tolist())
-        selected_contract = st.sidebar.selectbox("Tipo de Contrato", contract_types)
-    elif 'jornada' in jobs_df.columns:
-        contract_types = ['Todos'] + sorted(jobs_df['jornada'].dropna().unique().tolist())
-        selected_contract = st.sidebar.selectbox("Jornada", contract_types)
-    else:
-        selected_contract = "Todos"
-    
-    # Filtro por tecnología
-    if 'tecnologias' in jobs_df.columns:
-        all_techs = set()
-        for techs in jobs_df['tecnologias'].dropna():
-            if isinstance(techs, str):
-                all_techs.update([t.strip() for t in techs.split(',')])
-        tech_options = ['Todas'] + sorted(all_techs)
-        selected_tech = st.sidebar.selectbox("Tecnología", tech_options)
-    else:
-        selected_tech = "Todas"
     
     # Aplicar filtros
     filtered_df = jobs_df.copy()
@@ -417,15 +432,14 @@ def run_dashboard():
     if selected_location != "Todas" and location_col:
         filtered_df = filtered_df[filtered_df[location_col] == selected_location]
     
-    if selected_contract != "Todos":
-        if 'tipo_contrato' in jobs_df.columns:
-            filtered_df = filtered_df[filtered_df['tipo_contrato'] == selected_contract]
-        elif 'jornada' in jobs_df.columns:
-            filtered_df = filtered_df[filtered_df['jornada'] == selected_contract]
+    if selected_contract != "Todos" and contract_col:
+        filtered_df = filtered_df[filtered_df[contract_col] == selected_contract]
     
     if selected_tech != "Todas" and 'tecnologias' in jobs_df.columns:
-        filtered_df = filtered_df[filtered_df['tecnologias'].fillna('').apply(lambda x: selected_tech in x.split(',') if isinstance(x, str) else False)]
-    
+        # Usar regex para buscar la tecnología como una palabra completa y evitar coincidencias parciales (ej: 'Java' y 'JavaScript')
+        safe_tech_str = re.escape(selected_tech)
+        filtered_df = filtered_df[filtered_df['tecnologias'].str.contains(r'\b' + safe_tech_str + r'\b', na=False, regex=True)]
+
     # Mostrar información de filtros aplicados
     if selected_location != "Todas" or selected_contract != "Todos" or selected_tech != "Todas":
         filters_applied = []
@@ -440,69 +454,65 @@ def run_dashboard():
     
     # Visualizaciones principales (2 columnas)
     st.markdown("<h2 class='sub-header'>Tendencias del Mercado</h2>", unsafe_allow_html=True)
-    
-    col1, col2 = st.columns(2)
-    
-    # Gráfico 1: Distribución por ubicación
-    with col1:
-        if location_col and not filtered_df[location_col].isna().all():
+
+    if filtered_df.empty:
+        st.warning("No se encontraron ofertas que coincidan con los filtros seleccionados.")
+    else:
+        col1, col2 = st.columns(2)
+        
+        # Gráfico 1: Distribución por ubicación
+        with col1:
             st.markdown("### 📍 Distribución por Ubicación")
-            location_counts = filtered_df[location_col].value_counts().head(10)
-            
-            fig = px.bar(
-                x=location_counts.values,
-                y=location_counts.index,
-                orientation='h',
-                labels={'x': 'Número de ofertas', 'y': 'Ubicación'},
-                color=location_counts.values,
-                color_continuous_scale='blues'
-            )
-            
-            fig.update_layout(
-                height=400,
-                margin=dict(l=20, r=20, t=30, b=20),
-                coloraxis_showscale=False,
-                yaxis={'categoryorder': 'total ascending'}
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.markdown("### 📍 Distribución por Ubicación")
-            st.info("No hay datos de ubicación disponibles")
-    
-    # Gráfico 2: Tecnologías más demandadas
-    with col2:
-        if 'tecnologias' in filtered_df.columns and not filtered_df['tecnologias'].isna().all():
+            if location_col and not filtered_df[location_col].isna().all():
+                location_counts = filtered_df[location_col].value_counts().head(10)
+                fig = px.bar(
+                    x=location_counts.values,
+                    y=location_counts.index,
+                    orientation='h',
+                    labels={'x': 'Número de ofertas', 'y': 'Ubicación'},
+                    color=location_counts.values,
+                    color_continuous_scale='blues'
+                )
+                fig.update_layout(
+                    height=400,
+                    margin=dict(l=20, r=20, t=30, b=20),
+                    coloraxis_showscale=False,
+                    yaxis={'categoryorder': 'total ascending'}
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No hay datos de ubicación disponibles para esta selección.")
+        
+        # Gráfico 2: Tecnologías más demandadas
+        with col2:
             st.markdown("### 💻 Tecnologías Más Demandadas")
-            
-            # Extraer tecnologías del dataframe filtrado
-            all_techs = []
-            for techs in filtered_df['tecnologias'].dropna():
-                if isinstance(techs, str):
-                    all_techs.extend([t.strip() for t in techs.split(',')])
-            
-            tech_counts = pd.Series(all_techs).value_counts().head(10)
-            
-            fig = px.bar(
-                x=tech_counts.values,
-                y=tech_counts.index,
-                orientation='h',
-                labels={'x': 'Número de menciones', 'y': 'Tecnología'},
-                color=tech_counts.values,
-                color_continuous_scale='viridis'
-            )
-            
-            fig.update_layout(
-                height=400,
-                margin=dict(l=20, r=20, t=30, b=20),
-                coloraxis_showscale=False,
-                yaxis={'categoryorder': 'total ascending'}
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.markdown("### 💻 Tecnologías Más Demandadas")
-            st.info("No hay datos de tecnologías disponibles")
+            if 'tecnologias' in filtered_df.columns and not filtered_df['tecnologias'].isna().all():
+                all_techs = []
+                for techs in filtered_df['tecnologias'].dropna():
+                    if isinstance(techs, str):
+                        all_techs.extend([t.strip() for t in techs.split(',') if t.strip()])
+                
+                if all_techs:
+                    tech_counts = pd.Series(all_techs).value_counts().head(10)
+                    fig = px.bar(
+                        x=tech_counts.values,
+                        y=tech_counts.index,
+                        orientation='h',
+                        labels={'x': 'Número de menciones', 'y': 'Tecnología'},
+                        color=tech_counts.values,
+                        color_continuous_scale='oranges'
+                    )
+                    fig.update_layout(
+                        height=400,
+                        margin=dict(l=20, r=20, t=30, b=20),
+                        coloraxis_showscale=False,
+                        yaxis={'categoryorder': 'total ascending'}
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("No hay datos de tecnologías disponibles para esta selección.")
+            else:
+                st.info("No hay datos de tecnologías disponibles para esta selección.")
     
     # Gráficos adicionales (2 columnas)
     col1, col2 = st.columns(2)
