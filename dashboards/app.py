@@ -183,7 +183,6 @@ def get_important_skill_features(_pipeline, _trained_at):
     """
     Analiza el modelo entrenado para encontrar qué características de 'skill' tienen
     una importancia no nula y, por lo tanto, afectan a la predicción.
-    Utiliza el caché de Streamlit para mejorar el rendimiento.
     """
     try:
         preprocessor = _pipeline.named_steps['preprocessor']
