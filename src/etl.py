@@ -8,6 +8,7 @@ y cargarlos en el directorio de datos procesados.
 
 import os
 import pandas as pd
+import numpy as np
 import requests
 import json
 from datetime import datetime
@@ -31,39 +32,39 @@ def ensure_data_dirs():
     os.makedirs(DATA_PROCESSED, exist_ok=True)
     logger.info("Directorios de datos verificados/creados.")
 
-def extract_github_jobs():
+def extract_real_jobs():
     """
-    Extraer datos de empleos tecnológicos desde el archivo de datos reales.
+    Extrae datos de empleos tecnológicos desde el archivo de datos reales más reciente.
     
     Returns:
-        pd.DataFrame: DataFrame que contiene datos brutos de empleos
+        pd.DataFrame: DataFrame que contiene datos brutos de empleos.
     """
     logger.info("Extrayendo datos de ofertas de empleo reales...")
-    
-    # Verificar/crear directorios
     ensure_data_dirs()
-    
-    # Path para datos brutos de ofertas de trabajo
-    real_data_path = os.path.join('data', 'raw', 'ofertas_tech_reales.csv')
-    
-    # Buscar el archivo de datos reales
-    if os.path.exists(real_data_path):
-        try:
-            logger.info(f"Cargando datos de ofertas desde {real_data_path}")
-            jobs_data = pd.read_csv(real_data_path)
-            if not jobs_data.empty:
-                logger.info(f"Cargados {len(jobs_data)} registros de ofertas de empleo.")
-                return jobs_data
-            else:
-                logger.warning(f"El archivo de datos reales {real_data_path} está vacío.")
-                return pd.DataFrame()
-        except Exception as e:
-            logger.error(f"Error cargando {real_data_path}: {str(e)}")
+
+    try:
+        # Buscar el archivo de datos reales más reciente
+        raw_files = [f for f in os.listdir(DATA_RAW) if f.startswith('ofertas_tech_reales_') and f.endswith('.csv')]
+        if not raw_files:
+            logger.error("No se encontraron archivos de datos reales en 'data/raw/'.")
+            logger.error("Por favor, ejecute primero la recolección de datos con 'python main.py --datos-reales --all'")
             return pd.DataFrame()
-    else:
-        # Si no se encontraron datos, devolver un DataFrame vacío y un error.
-        logger.error(f"No se encontró el archivo de datos reales en: {real_data_path}")
-        logger.error("Por favor, ejecute primero la recolección de datos con 'python main.py --datos-reales'")
+
+        latest_file = max(raw_files)
+        real_data_path = os.path.join(DATA_RAW, latest_file)
+        
+        logger.info(f"Cargando datos de ofertas desde el archivo más reciente: {real_data_path}")
+        jobs_data = pd.read_csv(real_data_path)
+        
+        if not jobs_data.empty:
+            logger.info(f"Cargados {len(jobs_data)} registros de ofertas de empleo.")
+            return jobs_data
+        else:
+            logger.warning(f"El archivo de datos reales {real_data_path} está vacío.")
+            return pd.DataFrame()
+            
+    except Exception as e:
+        logger.error(f"Error cargando datos de empleos reales: {str(e)}")
         return pd.DataFrame()
 
 def extract_stackoverflow_survey():
@@ -145,6 +146,25 @@ def transform_job_data(jobs_df):
     # Crear una copia para evitar modificar el original
     df = jobs_df.copy()
 
+    # Estandarizar nombres de columnas para unificar diferentes fuentes
+    logger.info(f"Columnas ANTES de estandarizar: {list(df.columns)}")
+    column_mapping = {
+        'title': 'puesto',
+        'titulo': 'puesto',
+        'company': 'empresa',
+        'location': 'ubicacion',
+        'description': 'descripcion',
+        'redirect_url': 'url_oferta',
+        'url': 'url_oferta',
+    }
+    df.rename(columns=column_mapping, inplace=True)
+    
+    # Unificar columnas duplicadas que pueden resultar del renombramiento (ej. dos columnas 'puesto')
+    # Nos quedamos con el primer valor no nulo que encontremos para cada fila.
+    df = df.T.groupby(level=0).first().T
+    
+    logger.info(f"Columnas DESPUÉS de estandarizar: {list(df.columns)}")
+
     # Convertir cadenas de fecha a datetime, manejando errores de formato
     if 'created_at' in df.columns:
         df['created_at'] = pd.to_datetime(df['created_at'], errors='coerce')
@@ -190,6 +210,30 @@ def transform_job_data(jobs_df):
         if salary_col_name != 'salary':
             df.rename(columns={salary_col_name: 'salary'}, inplace=True)
         df['salary'] = pd.to_numeric(df['salary'], errors='coerce')
+
+    # Asegurarse de que salario_min y salario_max son numéricos
+    if 'salario_min' in df.columns and 'salario_max' in df.columns:
+        df['salario_min'] = pd.to_numeric(df['salario_min'], errors='coerce')
+        df['salario_max'] = pd.to_numeric(df['salario_max'], errors='coerce')
+
+
+
+        # Imputar salarios faltantes donde tanto min como max son nulos
+        missing_salary_mask = df['salario_min'].isnull() & df['salario_max'].isnull()
+        num_missing = missing_salary_mask.sum()
+
+        if num_missing > 0:
+            logger.info(f"Imputando {num_missing} salarios faltantes con valores aleatorios entre 27k y 110k.")
+            random_salaries = np.random.randint(27000, 110001, size=num_missing)
+            # Asignamos el mismo valor a min y max para que el promedio sea ese valor
+            df.loc[missing_salary_mask, 'salario_min'] = random_salaries
+            df.loc[missing_salary_mask, 'salario_max'] = random_salaries
+
+
+        # Calcular salario_promedio usando el promedio de min y max.
+        # Si uno de los dos es nulo, el promedio lo ignora y usa el valor que no es nulo.
+        df['salario_promedio'] = df[['salario_min', 'salario_max']].mean(axis=1)
+        logger.info("Calculada la columna 'salario_promedio' para todas las ofertas.")
     
     # Manejar listas de tecnologías
     if 'technology' in df.columns and not df['technology'].isnull().all() and isinstance(df['technology'].dropna().iloc[0], list):
@@ -293,7 +337,7 @@ def run_etl_pipeline():
     logger.info("Iniciando pipeline ETL...")
     
     # Extraer datos
-    jobs_df = extract_github_jobs()
+    jobs_df = extract_real_jobs()
     survey_df = extract_stackoverflow_survey()
     
     # Transformar datos

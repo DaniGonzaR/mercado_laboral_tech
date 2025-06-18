@@ -117,6 +117,8 @@ def train_salary_model(data_path: Path = DATA_PATH, model_path: Path = MODEL_PAT
         logger.error(f"Error: El archivo {data_path} no fue encontrado. Ejecuta el pipeline ETL primero.")
         return
 
+
+
     # --- 2. Preprocesamiento y Feature Engineering ---
     df = preprocess_data(df)
 

@@ -217,7 +217,12 @@ def correlation_analysis(df, target_col, numerical_cols=None):
     pearson_corrs = {}
     for col in numerical_cols:
         if col in df.columns:
-            corr, p_value = stats.pearsonr(df[target_col].dropna(), df[col].dropna())
+            # Asegurarse de que ambas columnas tengan la misma longitud después de eliminar NaNs
+            temp_df = df[[target_col, col]].dropna()
+            if len(temp_df) < 2:
+                continue  # No se puede calcular la correlación con menos de 2 puntos de datos
+            
+            corr, p_value = stats.pearsonr(temp_df[target_col], temp_df[col])
             pearson_corrs[col] = {
                 'correlation': corr,
                 'p_value': p_value,

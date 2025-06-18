@@ -38,14 +38,21 @@ class JobDataCollector:
         # API de Adzuna
         self.adzuna_app_id = os.getenv('ADZUNA_APP_ID')
         self.adzuna_api_key = os.getenv('ADZUNA_API_KEY')
+
+        # API de Jooble
+        self.jooble_api_key = os.getenv('JOOBLE_API_KEY')
         
-        # Si no hay credenciales o force_mock es True, usar datos simulados
-        self.use_mock = force_mock or not (self.adzuna_app_id and self.adzuna_api_key)
+        # Si no hay credenciales para NINGUNA API o force_mock es True, usar datos simulados
+        self.use_mock = force_mock or not any([self.adzuna_app_id and self.adzuna_api_key, self.jooble_api_key])
         
         if self.use_mock:
             logger.info("Usando datos simulados de empleo para el análisis.")
         else:
-            logger.info("Usando API de Adzuna para obtener datos reales de empleo.")
+            logger.info("Usando APIs para obtener datos reales de empleo.")
+            if not (self.adzuna_app_id and self.adzuna_api_key):
+                logger.warning("Credenciales de Adzuna no configuradas. Se omitirá esta fuente.")
+            if not self.jooble_api_key:
+                logger.warning("Credenciales de Jooble no configuradas. Se omitirá esta fuente.")
     
     def get_tech_jobs_adzuna(self, country_code='es', results_per_page=50, max_pages=20, 
                            what='developer OR programmer OR engineer OR data', 
@@ -63,67 +70,53 @@ class JobDataCollector:
         Returns:
             pd.DataFrame: DataFrame con las ofertas de empleo
         """
-        # Si no hay credenciales, usar datos simulados pero con estructura real
-        if self.use_mock:
-            logger.info("Generando datos simulados con la estructura de Adzuna API...")
-            return self._generate_mock_adzuna_data(results_per_page * max_pages)
-        
-        base_url = f"https://api.adzuna.com/v1/api/jobs/{country_code}/search"
-        
+        if where is None:
+            where = ['madrid', 'barcelona']
+
+        if not self.adzuna_app_id or not self.adzuna_api_key:
+            logger.warning("Credenciales de Adzuna no encontradas. Usando datos simulados.")
+            return self.generate_mock_data('Adzuna', 30)
+
+        logger.info(f"Buscando en Adzuna con los parámetros: what='{what}', where={where}")
+        base_url_template = f"https://api.adzuna.com/v1/api/jobs/{country_code}/search"
         all_jobs = []
-        
-        try:
+
+        for location in where:
+            logger.info(f"Buscando en Adzuna para la ubicación: {location}")
             for page in range(1, max_pages + 1):
-                logger.info(f"Obteniendo página {page} de {max_pages}...")
-                
+                url = f"{base_url_template}/{page}"
                 params = {
                     'app_id': self.adzuna_app_id,
                     'app_key': self.adzuna_api_key,
                     'results_per_page': results_per_page,
                     'what': what,
-                    'where': where,
-                    'page': page,
-                    'content-type': 'application/json',
-                    'salary_include_unknown': 0  # No incluir ofertas sin salario
+                    'where': location,
+                    'salary_include_unknown': 0
                 }
-                
-                response = requests.get(base_url, params=params)
-                
+
+                response = requests.get(url, params=params)
+
                 if response.status_code == 200:
                     data = response.json()
-                    
-                    if not data.get('results'):
-                        logger.info(f"No se encontraron más resultados en la página {page}")
+                    page_jobs = data.get('results', [])
+                    if not page_jobs:
+                        logger.info(f"No se encontraron más ofertas de Adzuna en la página {page} para la ubicación {location}")
                         break
-                    
-                    all_jobs.extend(data['results'])
-                    logger.info(f"Obtenidos {len(data['results'])} empleos de la página {page}")
-                    
-                    # Verificar si hay más resultados
-                    if len(data['results']) < results_per_page:
-                        logger.info("No hay más resultados disponibles")
-                        break
-                    
-                    # Esperar para no sobrecargar la API
+                    all_jobs.extend(page_jobs)
+                    logger.info(f"Obtenidas {len(page_jobs)} ofertas de Adzuna de la página {page} para la ubicación {location}")
                     time.sleep(1)
                 else:
-                    logger.error(f"Error al obtener datos: {response.status_code} - {response.text}")
-                    break
-            
-            # Convertir a DataFrame
-            df = self._process_adzuna_data(all_jobs)
-            
-            # Guardar datos crudos
-            output_path = os.path.join('data', 'raw', 'ofertas_adzuna.csv')
-            os.makedirs(os.path.dirname(output_path), exist_ok=True)
-            df.to_csv(output_path, index=False, encoding='utf-8')
-            
-            logger.info(f"Datos guardados en {output_path}")
-            return df
-            
-        except Exception as e:
-            logger.error(f"Error obteniendo datos de Adzuna: {str(e)}", exc_info=True)
+                    logger.error(f"Error en la API de Adzuna: {response.status_code} para la ubicación {location}.")
+                    if page == 1:
+                        logger.warning("La primera página falló, abortando búsqueda para esta palabra clave y ubicación.")
+                        break
+
+        if not all_jobs:
+            logger.warning("No se obtuvieron ofertas de Adzuna para los criterios de búsqueda.")
             return pd.DataFrame()
+
+        logger.info(f"Se obtuvieron {len(all_jobs)} ofertas de Adzuna en total.")
+        return pd.DataFrame(all_jobs)
 
     def _process_adzuna_data(self, adzuna_jobs):
         """Procesar datos de Adzuna para crear un DataFrame."""
@@ -144,6 +137,86 @@ class JobDataCollector:
         
         return processed_jobs
     
+    def get_tech_jobs_jooble(self, keywords='developer', location='spain', max_pages=5):
+        """
+        Obtener ofertas de empleo tecnológico desde la API de Jooble.
+        
+        Args:
+            keywords (str): Palabras clave para la búsqueda.
+            location (str): Ubicación para la búsqueda.
+            max_pages (int): Número máximo de páginas a solicitar.
+            
+        Returns:
+            pd.DataFrame: DataFrame con las ofertas de empleo.
+        """
+        if not self.jooble_api_key:
+            logger.warning("API Key de Jooble no proporcionada. Omitiendo búsqueda en Jooble.")
+            return pd.DataFrame()
+
+        base_url = f"https://jooble.org/api/{self.jooble_api_key}"
+        headers = {"Content-Type": "application/json"}
+        all_jobs = []
+
+        try:
+            for page in range(1, max_pages + 1):
+                logger.info(f"Obteniendo página {page} de {max_pages} de Jooble...")
+                
+                payload = {
+                    "keywords": keywords,
+                    "location": location,
+                    "page": page
+                }
+                
+                response = requests.post(base_url, headers=headers, json=payload)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    
+                    if not data.get('jobs'):
+                        logger.info(f"No se encontraron más resultados de Jooble en la página {page}")
+                        break
+                    
+                    all_jobs.extend(data['jobs'])
+                    logger.info(f"Obtenidos {len(data['jobs'])} empleos de Jooble de la página {page}")
+
+                    if len(data.get('jobs', [])) == 0 and page > 1:
+                        break
+
+                else:
+                    logger.error(f"Error en la API de Jooble (página {page}): {response.status_code} - {response.text}")
+                    break
+                
+                time.sleep(1) # Respetar límites de la API
+
+        except Exception as e:
+            logger.error(f"Excepción al contactar la API de Jooble: {str(e)}")
+            return pd.DataFrame()
+
+        if not all_jobs:
+            return pd.DataFrame()
+
+        return self._process_jooble_data(all_jobs)
+
+    def _process_jooble_data(self, jooble_jobs):
+        """Procesar datos de Jooble para crear un DataFrame."""
+        processed_jobs = []
+        for job in jooble_jobs:
+            processed_jobs.append({
+                'id': job.get('id'),
+                'titulo': job.get('title'),
+                'empresa': job.get('company'),
+                'ubicacion': job.get('location'),
+                'descripcion': job.get('snippet'),
+                'salario_min': None,  # Jooble da un string de salario, no min/max
+                'salario_max': None,
+                'moneda': None,
+                'salario_str': job.get('salary'), # Guardamos el string original
+                'fecha_publicacion': job.get('updated'),
+                'url_oferta': job.get('link'),
+                'fuente': 'Jooble'
+            })
+        return pd.DataFrame(processed_jobs)
+
     def get_tech_jobs(self, keywords='python developer', location='', results_per_page=50, max_pages=5):
         """
         Obtener ofertas de trabajo del sector tecnológico desde la API de Reed UK (sin autenticación compleja).
@@ -662,89 +735,116 @@ class JobDataCollector:
         
         return df
 
-def fetch_real_job_data(use_apis=True, download_survey=True, keywords=None):
+def fetch_real_job_data(use_apis=True, download_survey=True, keywords=None, locations=None):
     """
     Recopilar datos REALES de empleo para análisis del mercado laboral.
     
     Args:
         use_apis (bool): Si es True, obtendrá datos reales desde APIs públicas.
-        download_survey (bool): Si es True, obtendrá datos de encuestas (o generará datos similares si no es posible).
+        download_survey (bool): Si es True, obtendrá datos de encuestas.
         keywords (list): Lista de palabras clave para la búsqueda.
+        locations (list): Lista de ubicaciones para la búsqueda.
         
     Returns:
         tuple: (jobs_df, survey_df) - DataFrames con los datos recolectados
     """
     logger.info("Iniciando recopilación de datos REALES para análisis...")
     
-    # Crear colector sin forzar datos simulados
-    collector = JobDataCollector(force_mock=False)
+    collector = JobDataCollector(force_mock=not use_apis)
     jobs_df = pd.DataFrame()
     survey_df = pd.DataFrame()
     
-    # Usar palabras clave por defecto si no se proporcionan
     if keywords is None:
         keywords = [
-            'python developer', 
-            'data scientist',
-            'software engineer',
-            'frontend developer', 
-            'backend developer',
-            'machine learning', 
-            'devops',
-            'full stack developer'
+            'python developer', 'data scientist', 'software engineer', 
+            'frontend developer', 'backend developer', 'machine learning', 
+            'devops', 'full stack developer'
         ]
     
-    # Obtener datos REALES de empleos de múltiples fuentes
+    if locations is None:
+        locations = ['madrid', 'barcelona', 'valencia']
+
     if use_apis:
         all_jobs_data = []
-        
+
+        # Búsqueda en Adzuna (por cada palabra clave)
         for keyword in keywords:
             try:
-                logger.info(f"Obteniendo datos reales para búsqueda: {keyword}")
-                # Usar el nuevo método que obtiene datos reales
-                keyword_jobs = collector.get_tech_jobs(keywords=keyword)
-                
-                if not keyword_jobs.empty:
-                    logger.info(f"Obtenidas {len(keyword_jobs)} ofertas reales para '{keyword}'")
-                    all_jobs_data.append(keyword_jobs)
+                logger.info(f"Buscando en Adzuna para: '{keyword}'")
+                adzuna_jobs = collector.get_tech_jobs_adzuna(
+                    what=keyword,
+                    where=locations
+                )
+                if not adzuna_jobs.empty:
+                    logger.info(f"Obtenidas {len(adzuna_jobs)} ofertas de Adzuna para '{keyword}'.")
+                    all_jobs_data.append(adzuna_jobs)
                 else:
-                    logger.warning(f"No se encontraron ofertas reales para '{keyword}'")
-                    
-                # Esperar un poco entre búsquedas para no sobrecargar las APIs
+                    logger.warning(f"No se encontraron ofertas en Adzuna para '{keyword}'.")
                 time.sleep(1.5)
-                
             except Exception as e:
-                logger.error(f"Error obteniendo datos para '{keyword}': {str(e)}")
-                continue
+                logger.error(f"Error obteniendo datos de Adzuna para '{keyword}': {str(e)}")
+
+        # Búsqueda en Jooble (con palabras clave combinadas con comas)
+        try:
+            logger.info("Buscando en Jooble...")
+            jooble_jobs = collector.get_tech_jobs_jooble(
+                keywords=', '.join(keywords),
+                location='spain'
+            )
+            if not jooble_jobs.empty:
+                logger.info(f"Obtenidas {len(jooble_jobs)} ofertas de Jooble.")
+                all_jobs_data.append(jooble_jobs)
+            else:
+                logger.warning("No se encontraron ofertas en Jooble.")
+        except Exception as e:
+            logger.error(f"Error obteniendo datos de Jooble: {str(e)}")
         
-        # Combinar todos los resultados
+        time.sleep(1.5)
+
+        # Búsqueda en Reed (por cada palabra clave)
+        for keyword in keywords:
+            try:
+                logger.info(f"Buscando en Reed para: {keyword}")
+                reed_jobs = collector.get_tech_jobs(keywords=keyword, location='london') # Reed es de UK
+                
+                if not reed_jobs.empty:
+                    logger.info(f"Obtenidas {len(reed_jobs)} ofertas de Reed para '{keyword}'")
+                    all_jobs_data.append(reed_jobs)
+                else:
+                    logger.warning(f"No se encontraron ofertas en Reed para '{keyword}'")
+                
+                time.sleep(1.5)
+            except Exception as e:
+                logger.error(f"Error obteniendo datos de Reed para '{keyword}': {str(e)}")
+
         if all_jobs_data:
             jobs_df = pd.concat(all_jobs_data, ignore_index=True)
             
-            # Eliminar duplicados si hay
-            if 'id' in jobs_df.columns:
-                jobs_df = jobs_df.drop_duplicates(subset=['id'])
-            else:
-                jobs_df = jobs_df.drop_duplicates(subset=['titulo', 'empresa'])
+            logger.info(f"Total de ofertas antes de eliminar duplicados: {len(jobs_df)}")
+
+            # Eliminar duplicados por ID si existe, si no, por una combinación de campos
+            # Priorizar la eliminación por 'id' si la columna existe y no es nula
+            if 'id' in jobs_df.columns and jobs_df['id'].notna().any():
+                jobs_df['id'] = jobs_df['id'].astype(str)
+                jobs_df.drop_duplicates(subset=['id'], keep='first', inplace=True)
+
+            # Como fallback o adicionalmente, eliminar por combinación de otros campos
+            jobs_df.drop_duplicates(subset=['titulo', 'empresa', 'ubicacion'], keep='first', inplace=True)
             
-            # Guardar datos en el directorio raw
             raw_dir = os.path.join('data', 'raw')
             os.makedirs(raw_dir, exist_ok=True)
             
-            csv_path = os.path.join(raw_dir, 'ofertas_tech_reales.csv')
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            csv_path = os.path.join(raw_dir, f'ofertas_tech_reales_{timestamp}.csv')
             jobs_df.to_csv(csv_path, index=False)
             
-            logger.info(f"Datos REALES de empleos guardados en {csv_path} ({len(jobs_df)} ofertas)")
+            logger.info(f"Datos de empleos guardados en {csv_path} ({len(jobs_df)} ofertas únicas)")
         else:
-            logger.warning("No se pudieron obtener datos reales de ninguna búsqueda. Intenta más tarde.")
+            logger.warning("No se pudieron obtener datos de ninguna API. Intenta más tarde.")
     
-    # Obtener datos de encuesta (por ahora usamos simulados porque las encuestas reales son difíciles de obtener)
     if download_survey:
         try:
-            # Intentar obtener datos de Stack Overflow Developer Survey (si tenemos acceso)
-            # Para datos reales, necesitaríamos acceder a la encuesta oficial de Stack Overflow
-            logger.warning("Stack Overflow Developer Survey requiere descarga manual.")
-            logger.info("Usando datos simulados de encuesta como alternativa")
+            logger.warning("Stack Overflow Developer Survey requiere descarga manual. Usando datos simulados.")
             survey_df = collector.get_stack_overflow_survey()
             logger.info(f"Datos de encuesta generados con {len(survey_df)} registros")
         except Exception as e:
@@ -753,4 +853,5 @@ def fetch_real_job_data(use_apis=True, download_survey=True, keywords=None):
     return jobs_df, survey_df
 
 if __name__ == "__main__":
-    fetch_real_job_data(force_mock=True)
+    # Para ejecutar y obtener datos reales, llama a la función así:
+    fetch_real_job_data(use_apis=True)

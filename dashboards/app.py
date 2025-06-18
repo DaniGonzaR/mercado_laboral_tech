@@ -22,6 +22,8 @@ from datetime import datetime
 # Añadir directorio raíz al path para importar módulos del proyecto
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+
+
 # Configuración de la página
 st.set_page_config(
     page_title="Análisis del Mercado Laboral Tech",
@@ -170,7 +172,7 @@ def is_real_data(jobs_df):
         return True
     
     # Si no, comprobamos si las columnas clave de datos reales existen
-    real_data_cols = ['titulo', 'empresa', 'ubicacion', 'salario_promedio', 'url_oferta']
+    real_data_cols = ['puesto', 'empresa', 'ubicacion', 'salario_promedio', 'url_oferta']
     if all(col in jobs_df.columns for col in real_data_cols):
         # Y si al menos una de ellas tiene datos no nulos
         if any(jobs_df[col].notna().any() for col in real_data_cols):
@@ -215,6 +217,8 @@ def run_dashboard():
     # Determinar dinámicamente las columnas a usar
     salary_col = determine_salary_column(jobs_df)
 
+
+    
     # Filtrar para usar solo datos con información de salario
     if salary_col:
         jobs_df[salary_col] = pd.to_numeric(jobs_df[salary_col], errors='coerce')
@@ -227,8 +231,15 @@ def run_dashboard():
     if tech_counts_df is None:
         tech_counts_df = extract_technologies(jobs_df)
     
-    # Verificar si tenemos datos reales o simulados
+    # Verificar si tenemos datos reales o simulados y aplicar limpieza si es necesario
     data_type = is_real_data(jobs_df)
+    if data_type:
+        # Eliminar filas con valores nulos en columnas críticas
+        jobs_df.dropna(subset=['puesto', 'empresa', 'ubicacion'], inplace=True)
+
+        # Asegurarse de que el salario es numérico
+        if salary_col:
+            jobs_df[salary_col] = pd.to_numeric(jobs_df[salary_col], errors='coerce')
     
     # Header
     st.markdown("<h1 class='main-header'>Dashboard del Mercado Laboral Tecnológico</h1>", unsafe_allow_html=True)
