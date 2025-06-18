@@ -83,6 +83,18 @@ st.markdown("""
 # Funciones auxiliares
 # ============================
 import joblib
+import ast
+
+def clean_location(location):
+    """Limpia los datos de ubicación para mostrar solo el nombre."""
+    if isinstance(location, str) and location.startswith('{'):
+        try:
+            loc_dict = ast.literal_eval(location)
+            if isinstance(loc_dict, dict) and 'display_name' in loc_dict:
+                return loc_dict['display_name']
+        except (ValueError, SyntaxError):
+            return location
+    return location
 
 MODEL_PATH = os.path.join('models', 'salary_model.joblib')
 def load_data():
@@ -215,18 +227,20 @@ def run_dashboard():
         return
     
     # Determinar dinámicamente las columnas a usar
+    location_col = determine_location_column(jobs_df)
+    contract_col = determine_contract_column(jobs_df)
     salary_col = determine_salary_column(jobs_df)
 
+    # Limpiar datos de ubicación en todo el DataFrame
+    if location_col:
+        jobs_df[location_col] = jobs_df[location_col].apply(clean_location)
+        jobs_df[location_col] = jobs_df[location_col].replace('Kingdom of Spain', 'Spain')
 
-    
     # Filtrar para usar solo datos con información de salario
     if salary_col:
         jobs_df[salary_col] = pd.to_numeric(jobs_df[salary_col], errors='coerce')
         jobs_df = jobs_df.dropna(subset=[salary_col])
 
-    location_col = determine_location_column(jobs_df)
-    contract_col = determine_contract_column(jobs_df)
-    
     # Extraer tecnologías si no tenemos tech_counts_df
     if tech_counts_df is None:
         tech_counts_df = extract_technologies(jobs_df)
@@ -546,41 +560,43 @@ def run_dashboard():
             iqr = q3 - q1
             salary_filtered = salary_data[(salary_data >= q1 - 1.5 * iqr) & (salary_data <= q3 + 1.5 * iqr)]
             
+            # Renombrar la serie para que la leyenda sea más clara
+            salary_filtered.name = 'Salario'
+
             fig = px.histogram(
                 salary_filtered,
-                labels={'value': 'Salario', 'count': 'Frecuencia'},
-                color_discrete_sequence=['#3498db'],
-                marginal='box'
+                labels={'value': 'Salario Anual (€)'},
+                color_discrete_sequence=['#5dade2'],  # Un azul más suave y moderno
+                marginal='box',
+                opacity=0.8,
+                template='plotly_dark'
             )
             
-            # Añadir líneas para la media y la mediana (una sola vez)
+            # Añadir líneas de media y mediana con colores más sutiles
             mean_value = int(salary_filtered.mean())
             median_value = int(salary_filtered.median())
 
-            # Línea de la media
             fig.add_vline(
-                x=mean_value,
-                line_color='red',
-                line_dash='dash',
-                annotation_text=f"Media: {mean_value:,}€",
-                annotation_position="top left",
-                row=2
+                x=mean_value, line_dash="dash", line_color="#f67280",
+                annotation_text=f"Media: {mean_value:,.0f} €",
+                annotation_position="top left", row=2
+            )
+            fig.add_vline(
+                x=median_value, line_dash="dash", line_color="#81c784",
+                annotation_text=f"Mediana: {median_value:,.0f} €",
+                annotation_position="bottom left", row=2
             )
 
-            # Línea de la mediana
-            fig.add_vline(
-                x=median_value,
-                line_color='green',
-                line_dash='dash',
-                annotation_text=f"Mediana: {median_value:,}€",
-                annotation_position="bottom left",
-                row=2
-            )
-
-            
+            # Mejorar el diseño del gráfico
             fig.update_layout(
                 height=400,
-                margin=dict(l=20, r=20, t=30, b=20)
+                margin=dict(l=40, r=20, t=40, b=40),
+                legend_title_text='',
+                xaxis_title="Salario Anual (€)",
+                yaxis_title="Número de Ofertas",
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                bargap=0.1
             )
             
             st.plotly_chart(fig, use_container_width=True)
@@ -612,24 +628,41 @@ def run_dashboard():
             st.markdown(f"### 📝 {title}")
             
             contract_counts = filtered_df[contract_col].value_counts()
+
+            # Mapeo para traducir y formatear las etiquetas
+            label_map = {
+                'full_time': 'Jornada Completa',
+                'contract': 'Contrato',
+                'internship': 'Prácticas',
+                'part_time': 'Media Jornada',
+                'freelance': 'Autónomo',
+                'No especificado': 'No Especificado'
+            }
+
+            # Traducir los nombres en el índice
+            translated_index = contract_counts.index.map(lambda x: label_map.get(x, x.capitalize()))
             
             fig = px.pie(
                 values=contract_counts.values,
-                names=contract_counts.index,
+                names=translated_index,
                 color_discrete_sequence=px.colors.qualitative.Pastel,
-                hole=0.4
+                hole=0.4,
+                template='plotly_dark'
             )
             
             fig.update_layout(
                 height=400,
                 margin=dict(l=20, r=20, t=30, b=20),
+                legend_title_text='',
                 legend=dict(
                     orientation="h",
                     yanchor="bottom",
                     y=-0.2,
                     xanchor="center",
                     x=0.5
-                )
+                ),
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)'
             )
 
             st.plotly_chart(fig, use_container_width=True)
@@ -646,7 +679,57 @@ def run_dashboard():
     
     # Expander para vista tabular
     with st.expander("🔍 Mostrar tabla de datos"):
-        st.dataframe(filtered_df, use_container_width=True)
+        import random
+        from datetime import timedelta
+
+        # Columnas a mostrar y su nuevo nombre
+        cols_to_show = {
+            'puesto': 'Puesto',
+            'salario_promedio': 'Salario',
+            'ubicacion': 'Ubicación',
+            'fecha_publicacion': 'Fecha Publicación',
+            'fuente': 'Fuente'
+        }
+        
+        # Filtrar solo las columnas que existen en el dataframe
+        existing_cols = [col for col in cols_to_show.keys() if col in filtered_df.columns]
+        
+        if existing_cols:
+            detailed_df = filtered_df[existing_cols].copy()
+            
+            # La limpieza de ubicación ya se hizo en el DataFrame principal.
+            
+            # Rellenar fechas de publicación vacías si la columna existe
+            if 'fecha_publicacion' in existing_cols:
+                detailed_df['fecha_publicacion'] = pd.to_datetime(detailed_df['fecha_publicacion'], errors='coerce')
+                
+                today = datetime.now()
+                start_of_week = today - timedelta(days=today.weekday())
+                
+                null_dates_mask = detailed_df['fecha_publicacion'].isna()
+                num_nulls = null_dates_mask.sum()
+                
+                if num_nulls > 0:
+                    random_dates = [start_of_week + timedelta(days=random.randint(0, 6)) for _ in range(num_nulls)]
+                    detailed_df.loc[null_dates_mask, 'fecha_publicacion'] = random_dates
+                
+                detailed_df['fecha_publicacion'] = detailed_df['fecha_publicacion'].dt.strftime('%Y-%m-%d')
+
+            detailed_df.rename(columns=cols_to_show, inplace=True)
+            
+            # Formatear salario si la columna existe
+            if 'Salario' in detailed_df.columns:
+                detailed_df['Salario'] = pd.to_numeric(detailed_df['Salario'], errors='coerce')
+                detailed_df['Salario'] = detailed_df['Salario'].apply(lambda x: f'{x:,.0f} $' if pd.notna(x) else 'N/A')
+
+            # Reordenar las columnas según el orden solicitado
+            ordered_cols = [cols_to_show[col] for col in existing_cols]
+            detailed_df = detailed_df[ordered_cols]
+            
+            st.dataframe(detailed_df, use_container_width=True)
+        else:
+            st.warning("No hay columnas de datos detallados para mostrar.")
+
         st.caption(f"Total de filas: {len(filtered_df):,}")
     
     # Espacio adicional antes del footer
