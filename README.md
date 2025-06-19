@@ -1,116 +1,94 @@
 # 📊 Análisis del Mercado Laboral Tecnológico Español
 
-Proyecto de análisis basado en **datos REALES** del mercado laboral tecnológico en todo el mundo. Incluye insights sobre demanda de tecnologías, rangos salariales, satisfacción laboral y tendencias de contratación, mediante un dashboard interactivo y análisis estadísticos avanzados.
+Proyecto de análisis basado en **datos HÍBRIDOS** del mercado laboral tecnológico en España. Incluye insights sobre demanda de tecnologías, rangos salariales, y tendencias de contratación, mediante un dashboard interactivo y un modelo de predicción de salarios basado en machine learning.
 
 ---
 
 ## 🔍 Preguntas de Investigación
 
-1. **¿Qué tecnologías son actualmente las más demandadas en el mercado global?**
-   A partir de más de 400 ofertas reales, se identifican las stacks y herramientas más solicitadas, como R, API, AI, Go y Python.
-2. **¿Cómo se distribuyen los salarios en empleos tecnológicos en función de la ubicación?**
-   Análisis comparativo entre países y regiones (España, USA, Europa, etc.) respecto a ofertas y rangos salariales.
-3. **¿Qué impacto tienen las tecnologías dominadas en la predicción salarial?**
-   Evaluación de cómo ciertas herramientas elevan o reducen el salario esperado según el modelo de IA integrado en el dashboard.
-4. **¿Qué tipo de contrato predomina en las ofertas tecnológicas actuales?**
-   Estudio de modalidades laborales (jornada completa, autónomo, prácticas, etc.) y su relación con la oferta y el salario.
-5. **¿Qué patrones emergen en los perfiles técnicos más demandados?**
-   Identificación de los roles con mayor presencia (como Python Developer, Software Engineer, QA Tester) y sus características comunes.
+1. **¿Qué tecnologías son actualmente las más demandadas en el mercado español?**
+   A partir de más de 3300 ofertas híbridas, se identifican las tecnologías más solicitadas, como Python, JavaScript, React, Java y tecnologías cloud.
+2. **¿Cómo se distribuyen los salarios en empleos tecnológicos en España?**
+   Análisis de rangos salariales por ubicación (Madrid, Barcelona, Valencia, etc.) y nivel de experiencia.
+3. **¿Qué impacto tienen las tecnologías en la predicción salarial?**
+   Evaluación mediante un modelo de machine learning integrado en el dashboard que identifica las tecnologías con mayor impacto en el salario.
+4. **¿Qué tipo de contrato predomina en las ofertas tecnológicas españolas?**
+   Estudio de modalidades laborales (indefinido, temporal, remoto, híbrido) y su relación con la oferta y el salario.
+5. **¿Cuál es la distribución geográfica de las ofertas tecnológicas en España?**
+   Análisis de la concentración de ofertas por ciudades y regiones.
 
 ---
 
-## 🗂️ Estructura del Proyecto
+## 💼 Estructura del Proyecto
 
 ```
-mercado_laboral_tech/
-├── dashboards/
-│   └── app.py                         # Dashboard interactivo (Streamlit)
-│
-├── data/
-│   ├── external/                      # Datos externos (encuestas, feeds)
-│   │   └── stack-overflow-survey-results-2023.csv
-│   ├── processed/                     # Datos ya transformados y listos para análisis
-│   │   ├── jobs_processed.csv
-│   │   └── survey_processed.csv
-│   └── raw/                           # Datos crudos sin procesar
-│       ├── ofertas_tech_reales_*.csv
-│       └── stackoverflow_survey_raw.csv
-│
-├── img/                               # Visualizaciones generadas
-│
-├── logs/
-│   └── job_analysis.log               # Registro del análisis de ejecución
-│
-├── models/
-│   └── salary_model.joblib           # Modelo de predicción salarial entrenado
-│
-├── notebooks/
-│   └── exploratory_analysis.ipynb    # Análisis exploratorio (EDA)
-│
-├── reports/                           # (Opcional) Reportes generados automáticamente
-│
-├── src/                               # Código fuente
-│   ├── data_collector.py              # Recolección desde APIs
-│   ├── data_generator.py              # Generación de datos sintéticos (si se requiere)
-│   ├── eda.py                         # Análisis exploratorio de datos
-│   ├── etl.py                         # Extracción, transformación y carga de datos
-│   ├── model_salary.py                # Lógica del modelo predictivo
-│   ├── scraper.py                     # Web scraping (opcional)
-│   └── stats.py                       # Análisis estadístico
-│
-├── .env                               # Variables de entorno
-├── .gitignore                         # Archivos ignorados por Git
-├── job_analysis.log                   # Log principal del pipeline
-├── main.py                            # Script principal del proyecto
-├── README.md                          # Documentación
-└── requirements.txt                   # Dependencias
-```
-
 mercado_laboral_tech/
 ├── data/               # Datos brutos, procesados y externos
-├── notebooks/          # Notebooks de análisis exploratorio
+│   ├── processed/       # Datos procesados listos para análisis
+│   │   ├── jobs_processed.csv       # Ofertas de empleo procesadas
+│   │   └── technology_job_counts.csv # Conteo de tecnologías
+│   └── raw/            # Datos crudos sin procesar
+│       └── ofertas_tech_reales_*.csv  # Datos de API real
 ├── dashboards/         # Dashboard interactivo (Streamlit)
-├── reports/            # Reportes y resultados generados
+│   └── app.py          # Aplicación principal del dashboard
 ├── src/                # Código fuente del proyecto
+│   ├── data_collector.py # Recolección de datos de APIs
 │   ├── etl.py          # Extracción y transformación de datos
-│   ├── eda.py          # Análisis exploratorio
 │   ├── model_salary.py # Modelo de predicción salarial
-│   ├── scraper.py      # Scraping de datos web
-│   └── stats.py        # Análisis estadístico
+│   ├── generate_spain_data.py # Generación de datos para España
+│   ├── fix_real_salaries.py # Corrección de salarios para datos reales
+│   └── update_job_metadata.py # Actualización de metadatos de ofertas
 ├── models/             # Modelos entrenados (.joblib)
-├── img/                # Visualizaciones generadas (EDA, stats)
-├── config.py           # Configuraciones del proyecto
-├── main.py             # Script principal para el pipeline completo
+├── logs/               # Archivos de registro
 ├── requirements.txt    # Dependencias del entorno
 └── README.md           # Documentación del proyecto
-```
 
 ---
 
-## 📡 Fuentes de Datos Reales
+## 💻 Fuëntes de Datos
 
-- **APIs públicas**: [Remotive](https://remotive.io), [Adzuna](https://developer.adzuna.com/), [Jooble](https://jooble.org/api/about)
-- **Stack Overflow Jobs Feed** (archivado, como referencia histórica)
-- **Datos estructurados generados solo si es necesario**
+- **Datos híbridos**: Combinación de datos reales y simulados para el mercado español
+- **APIs de empleo**: [Adzuna](https://developer.adzuna.com/) y [Jooble](https://jooble.org/api/about)
+- **Datos simulados**: Generados para complementar y enriquecer el análisis con ofertas relevantes para España
 
 ---
 
 ## ⚙️ Instalación y Uso
 
+### Estado Actual del Proyecto
+
+El proyecto se encuentra en su estado final, con las siguientes funcionalidades implementadas:
+
+- **Dashboard interactivo**: Visualización de más de 3300 ofertas de empleo tecnológico en España
+- **Datos híbridos**: Combinación de datos reales de Adzuna y Jooble con datos simulados de alta calidad
+- **Predicción de salarios**: Modelo de machine learning entrenado que predice salarios basado en ubicación, tecnologías y tipo de contrato
+- **Análisis de tendencias**: Visualización de tecnologías más demandadas, distribución geográfica y tipos de contrato predominantes
+- **ETL optimizado**: Pipeline de datos que procesa y combina múltiples fuentes en un formato unificado
+
 ### 🔧 Requisitos
 - Python ≥ 3.8  
-- Conexión a Internet (para obtener datos reales)  
-- Librerías: `pandas`, `scikit-learn`, `matplotlib`, `streamlit`, etc.
+- Pandas, Scikit-learn, Streamlit, Matplotlib, Seaborn
+- Conexión a Internet (opcional, solo para recolectar datos nuevos)
 
-### 🛠️ Instalación
+### 💻 Ejecución
 
-```bash
-git clone https://github.com/DaniGonzaR/mercado_laboral_tech.git
-cd mercado_laboral_tech
-python -m venv venv
-source venv/bin/activate  # (Windows: .\venv\Scripts\activate)
-pip install -r requirements.txt
-```
+1. **Instalación de dependencias:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. **Ejecutar dashboard:**
+   ```bash
+   streamlit run dashboards/app.py
+   ```
+
+### 🌟 Características Principales
+
+- **Visualización interactiva**: Dashboard completo con filtros, gráficos dinámicos y tabla de datos detallados
+- **Predicción de salarios**: Modelo de machine learning entrenado con métricas de rendimiento (MAE, R²)
+- **Análisis de tecnologías**: Identificación y conteo de tecnologías mencionadas en ofertas de empleo
+- **Datos geolocalizados**: Análisis por ubicación dentro de España para identificar tendencias regionales
+- **Estadísticas de contratos**: Análisis por tipo de contrato y modalidad de trabajo
 
 ### 🚀 Uso
 
@@ -164,29 +142,26 @@ Modelo de Gradient Boosting entrenado con datos reales:
 
 ---
 
-## 📊 Dashboard Interactivo (Streamlit)
+## 📊 Resultados y Conclusiones
 
-- 📌 Indicador de **datos reales** activos
-- 📍 Filtros por ubicación, tecnología, modalidad
-- 📈 Visualizaciones dinámicas:
-  - Mapa geográfico de empleos
-  - Ranking de tecnologías más demandadas
-  - Estadísticas salariales detalladas
+El análisis del mercado laboral tecnológico español revela importantes hallazgos:
 
-Ejecuta con:
-```bash
-streamlit run dashboards/app.py
-```
+- La demanda de profesionales tecnológicos continúa en aumento, especialmente en Madrid, Barcelona y Valencia
+- Las tecnologías más solicitadas incluyen Python, JavaScript, Java, tecnologías cloud y frameworks modernos
+- El modelo de predicción salarial alcanza un rendimiento aceptable con métricas que indican capacidad adecuada para estimar salarios
+- Existe una predominancia del trabajo remoto e híbrido frente al presencial tradicional
+- La combinación de datos reales (Adzuna, Jooble) e híbridos ha permitido un análisis más completo y representativo del mercado laboral español
 
----
+## 📡 Estado Final del Proyecto
 
-## 📌 Resultados Clave
+El proyecto ha alcanzado su estado final con todas las funcionalidades implementadas:
 
-- 🔝 **Tecnologías más demandadas**: Python, JavaScript, AWS, SQL, Docker
-- 💰 **Distribución salarial**: Rango amplio según seniority y stack
-- 🗺️ **Zonas con más ofertas**: Madrid, Barcelona, Valencia
-- 🤝 **Modalidad preferida**: Contrato indefinido, jornada completa
-- 🏢 **Empresas líderes**: Multinacionales y startups tecnológicas
+- Dashboard interactivo completamente funcional
+- Datos híbridos procesados y estructurados correctamente
+- Modelo de predicción entrenado con buenos resultados
+- Visualizaciones dinámicas de tendencias tecnológicas
+- Pipeline ETL optimizado
+- Sistema de filtrado por ubicación, tecnologías y tipo de contrato
 
 ---
 
