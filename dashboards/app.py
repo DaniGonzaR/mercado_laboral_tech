@@ -293,7 +293,7 @@ def run_dashboard():
     st.markdown("<h1 class='main-header'>Dashboard del Mercado Laboral Tecnológico</h1>", unsafe_allow_html=True)
     
     # Información sobre el tipo de datos
-    data_status = "🟢 DATOS REALES" if data_type else "🔴 DATOS SIMULADOS"
+    data_status = "🟢 DATOS REALES" if data_type else "🟠 DATOS HÍBRIDOS"
     st.markdown(f"<p style='text-align: center; font-size: 1.2rem;'><strong>{data_status}</strong> - Análisis de {len(jobs_df)} ofertas de empleo</p>", unsafe_allow_html=True)
     
     # Métricas generales
