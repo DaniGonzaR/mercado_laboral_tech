@@ -161,6 +161,7 @@ def transform_job_data(jobs_df):
     
     # Unificar columnas duplicadas que pueden resultar del renombramiento (ej. dos columnas 'puesto')
     # Nos quedamos con el primer valor no nulo que encontremos para cada fila.
+    # Corregido para evitar FutureWarning con axis=1 en groupby
     df = df.T.groupby(level=0).first().T
     
     logger.info(f"Columnas DESPUÉS de estandarizar: {list(df.columns)}")
@@ -351,5 +352,49 @@ def run_etl_pipeline():
     
     return jobs_transformed, survey_transformed
 
-if __name__ == "__main__":
-    run_etl_pipeline()
+def run_etl():
+    """
+    Ejecuta el pipeline ETL completo:
+    1. Carga datos desde archivos CSV
+    2. Transforma y limpia datos
+    3. Guarda los datos procesados
+    
+    Returns:
+        tuple: (ofertas_df, encuestas_df) - DataFrames procesados
+    """
+    logger.info("Iniciando proceso de ETL completo...")
+    
+    # Crear directorios de datos si no existen
+    os.makedirs('data/raw', exist_ok=True)
+    os.makedirs('data/processed', exist_ok=True)
+    
+    # Leer, transformar y cargar
+    ofertas_df = cargar_ofertas_desde_csv('data/raw')
+    encuestas_df = None
+    
+    if ofertas_df is not None and not ofertas_df.empty:
+        # Transformar ofertas
+        logger.info(f"Transformando {len(ofertas_df)} ofertas de trabajo...")
+        ofertas_limpias = transformar_ofertas(ofertas_df)
+        
+        # Procesar las encuestas
+        encuestas_df = cargar_encuestas_desde_csv('data/external')
+        
+        # Guardar los datos procesados
+        guardar_datos_procesados(ofertas_limpias, encuestas_df)
+        
+        logger.info("Proceso ETL completado con éxito.")
+        return ofertas_limpias, encuestas_df
+    else:
+        logger.warning("No se procesó ningún dato porque no se encontraron ofertas.")
+        return None, None
+
+if __name__ == '__main__':
+    # Configurar el registro
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    
+    # Ejecutar ETL
+    run_etl()

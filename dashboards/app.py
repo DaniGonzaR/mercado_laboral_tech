@@ -193,29 +193,63 @@ def is_real_data(jobs_df):
     return False
 
 @st.cache_data
-def get_important_skill_features(_pipeline, _trained_at):
+def get_important_skill_features(_metadata):
     """
-    Analiza el modelo entrenado para encontrar qué características de 'skill' tienen
-    una importancia no nula y, por lo tanto, afectan a la predicción.
+    Obtiene las características de skills importantes a partir de los metadatos del modelo.
+    Ahora usa directamente la información guardada en los metadatos en lugar de intentar
+    extraerla del pipeline.
     """
     try:
-        preprocessor = _pipeline.named_steps['preprocessor']
-        model = _pipeline.named_steps['model']
+        # Verificar si tenemos información directa de skills importantes en los metadatos
+        if 'important_skills' in _metadata and _metadata['important_skills']:
+            # Extraer los nombres de skills directamente
+            return [skill_info['name'] for skill_info in _metadata['important_skills']]
         
-        # Obtener los nombres de las características después de la transformación del preprocesador
-        feature_names_out = preprocessor.get_feature_names_out()
-        importances = model.feature_importances_
+        # Método alternativo: extraer del pipeline si la información directa no está disponible
+        elif 'pipeline' in _metadata:
+            pipeline = _metadata['pipeline']
+            preprocessor = pipeline.named_steps.get('preprocessor')
+            model = pipeline.named_steps.get('model')
+            
+            if preprocessor is not None and model is not None and hasattr(model, 'feature_importances_'):
+                try:
+                    # Obtener nombres e importancias
+                    feature_names_out = preprocessor.get_feature_names_out()
+                    importances = model.feature_importances_
+                    
+                    important_features = []
+                    for name, imp in zip(feature_names_out, importances):
+                        # Las skills se tratan como numéricas y el ColumnTransformer les añade el prefijo 'num__'
+                        if 'skill_' in name and imp > 1e-6: 
+                            # Extraer el nombre de la skill ya sea con prefijo num__ o sin él
+                            if name.startswith('num__'):
+                                skill_name = name.replace('num__', '')
+                            else:
+                                skill_name = name
+                                
+                            important_features.append(skill_name)
+                    
+                    return important_features
+                except Exception:
+                    pass
+            
+            # Si hay columnas de skills guardadas en los metadatos, usarlas como alternativa
+            elif 'skill_columns' in _metadata and _metadata['skill_columns']:
+                return _metadata['skill_columns']
+            
+        # Si todo falla, intentar usar tech_columns como alternativa
+        if 'tech_columns' in _metadata and _metadata['tech_columns']:
+            return _metadata['tech_columns']
+            
+        # Si no hay información de skills, buscar cualquier columna relevante
+        elif 'numerical_features' in _metadata:
+            return [col for col in _metadata['numerical_features'] 
+                   if 'skill_' in col or 'tech_' in col]
         
-        important_features = []
-        for name, imp in zip(feature_names_out, importances):
-            # Las skills se tratan como numéricas y el ColumnTransformer les añade el prefijo 'num__'
-            if name.startswith('num__skill_') and imp > 1e-6: # Usar un umbral pequeño para evitar ruido de punto flotante
-                # Quitar el prefijo para obtener el nombre original de la característica
-                important_features.append(name.replace('num__', ''))
+        return []
         
-        return important_features
-    except (KeyError, AttributeError):
-        # Manejar el caso en que la estructura del pipeline no sea la esperada
+    except Exception as e:
+        st.sidebar.warning(f"Error al obtener skills importantes: {e}")
         return []
 
 # Función principal del dashboard
@@ -370,9 +404,7 @@ def run_dashboard():
 
     if model_metadata is not None:
         # Analizar el modelo para encontrar las tecnologías que realmente impactan la predicción
-        pipeline = model_metadata['pipeline']
-        trained_at = model_metadata['trained_at']
-        important_skill_features = get_important_skill_features(pipeline, trained_at)
+        important_skill_features = get_important_skill_features(model_metadata)
 
         # Obtener todas las tecnologías únicas de los datos
         all_techs_pred = sorted({

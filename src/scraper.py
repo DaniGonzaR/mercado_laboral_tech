@@ -130,8 +130,8 @@ class JobScraper:
                 
                 logger.info(f"Encontradas {len(job_cards)} ofertas en la página {page}")
                 
-                # Extraer información de cada oferta (limitado a 3 por página para evitar bloqueos)
-                for i, card in enumerate(job_cards[:3], 1):
+                # Extraer información de cada oferta (limitado a 10 por página para evitar bloqueos)
+                for i, card in enumerate(job_cards[:10], 1):
                     try:
                         job_url = card.get_attribute('href')
                         if job_url:
@@ -266,26 +266,45 @@ class JobScraper:
 
 def main():
     """Función principal para ejecutar el scraping."""
-    scraper = JobScraper(headless=False)  # Cambiar a True para modo sin interfaz
+    scraper = JobScraper(headless=True)  # Modo sin interfaz para mayor eficiencia
     
-    # Palabras clave de búsqueda
+    # Palabras clave de búsqueda extendidas
     keywords = [
         'desarrollador', 
         'data scientist', 
         'analista datos', 
         'ingeniero software',
-        'devops'
+        'devops',
+        'frontend developer',
+        'backend developer',
+        'full stack',
+        'machine learning',
+        'tech lead',
+        'qa',
+        'programador',
+        'analista programador',
+        'cloud engineer',
+        'data engineer',
+        'ciberseguridad',
+        'javascript',
+        'python',
+        'java',
+        'react'
     ]
+    
+    # Ubicaciones específicas para ampliar la búsqueda
+    locations = ['España', 'Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Bilbao', 'Málaga', 'Zaragoza', 'Remoto']
     
     all_jobs = []
     
     try:
         for keyword in keywords:
-            logger.info(f"Buscando ofertas para: {keyword}")
-            jobs = scraper.scrape_infojobs(keyword=keyword, max_pages=2)
-            if not jobs.empty:
-                all_jobs.append(jobs)
-            time.sleep(random.uniform(5, 10))  # Espera más larga entre búsquedas
+            for location in locations:
+                logger.info(f"Buscando ofertas para: {keyword} en {location}")
+                jobs = scraper.scrape_infojobs(keyword=keyword, location=location, max_pages=5)
+                if not jobs.empty:
+                    all_jobs.append(jobs)
+                time.sleep(random.uniform(3, 5))  # Espera entre búsquedas
         
         # Combinar todos los resultados
         if all_jobs:

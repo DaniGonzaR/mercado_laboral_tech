@@ -29,7 +29,7 @@ except Exception as e:
 class JobDataCollector:
     """Clase para recopilar datos de empleo desde APIs públicas o generar datos simulados."""
     
-    def __init__(self, force_mock=True):
+    def __init__(self, force_mock=False):
         """Inicializar el colector de datos.
         
         Args:
@@ -54,9 +54,9 @@ class JobDataCollector:
             if not self.jooble_api_key:
                 logger.warning("Credenciales de Jooble no configuradas. Se omitirá esta fuente.")
     
-    def get_tech_jobs_adzuna(self, country_code='es', results_per_page=50, max_pages=20, 
-                           what='developer OR programmer OR engineer OR data', 
-                           where='madrid OR barcelona'):
+    def get_tech_jobs_adzuna(self, country_code='es', results_per_page=50, max_pages=40, 
+                           what='developer OR programmer OR engineer OR data OR javascript OR python OR java OR php OR frontend OR backend OR fullstack OR fullstack OR "machine learning" OR devops OR cloud', 
+                           where='madrid OR barcelona OR remote OR remoto OR españa'):
         """
         Obtener ofertas de empleo tecnológico desde la API de Adzuna.
         
@@ -756,14 +756,20 @@ def fetch_real_job_data(use_apis=True, download_survey=True, keywords=None, loca
     
     if keywords is None:
         keywords = [
-            'python developer', 'data scientist', 'software engineer', 
-            'frontend developer', 'backend developer', 'machine learning', 
-            'devops', 'full stack developer'
+            'developer', 'data scientist', 'software engineer', 'frontend', 'backend', 
+            'fullstack', 'devops', 'cloud engineer', 'data engineer', 'machine learning', 
+            'python', 'javascript', 'java', 'php', 'ruby', 'c#', '.net', 'sql', 'node.js', 
+            'react', 'angular', 'vue', 'aws', 'azure', 'cybersecurity', 'qa engineer',
+            'sysadmin', 'tech lead', 'cto', 'it project manager', 'scrum master',
+            'product owner', 'ui/ux', 'analista programador', 'programador', 'desarrollador web'
         ]
     
     if locations is None:
-        locations = ['madrid', 'barcelona', 'valencia']
-
+        locations = [
+            'spain', 'españa', 'madrid', 'barcelona', 'valencia', 'sevilla', 'bilbao', 
+            'zaragoza', 'málaga', 'remote', 'remoto', 'teletrabajo'
+        ]
+    
     if use_apis:
         all_jobs_data = []
 
