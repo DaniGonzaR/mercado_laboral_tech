@@ -19,27 +19,26 @@ Proyecto de análisis basado en **datos HÍBRIDOS** del mercado laboral tecnoló
 
 ---
 
-## 💼 Estructura del Proyecto
+## 💻 Estructura del Proyecto
 
 ```
 mercado_laboral_tech/
 ├── data/               # Datos brutos, procesados y externos
 │   ├── processed/       # Datos procesados listos para análisis
-│   │   ├── jobs_processed.csv       # Ofertas de empleo procesadas
+│   │   ├── jobs_processed.csv       # Ofertas de empleo procesadas (3305 registros)
 │   │   └── technology_job_counts.csv # Conteo de tecnologías
 │   └── raw/            # Datos crudos sin procesar
-│       └── ofertas_tech_reales_*.csv  # Datos de API real
 ├── dashboards/         # Dashboard interactivo (Streamlit)
 │   └── app.py          # Aplicación principal del dashboard
 ├── src/                # Código fuente del proyecto
-│   ├── data_collector.py # Recolección de datos de APIs
-│   ├── etl.py          # Extracción y transformación de datos
-│   ├── model_salary.py # Modelo de predicción salarial
+│   ├── model_salary.py  # Modelo de predicción salarial
 │   ├── generate_spain_data.py # Generación de datos para España
 │   ├── fix_real_salaries.py # Corrección de salarios para datos reales
-│   └── update_job_metadata.py # Actualización de metadatos de ofertas
+│   ├── update_job_metadata.py # Actualización de metadatos de ofertas
+│   └── update_locations.py # Actualización de ubicaciones para datos simulados
 ├── models/             # Modelos entrenados (.joblib)
 ├── logs/               # Archivos de registro
+├── ejecutar_pipeline.py # Script unificado para ejecutar todo el flujo
 ├── requirements.txt    # Dependencias del entorno
 └── README.md           # Documentación del proyecto
 
@@ -77,8 +76,15 @@ El proyecto se encuentra en su estado final, con las siguientes funcionalidades 
    pip install -r requirements.txt
    ```
 
-2. **Ejecutar dashboard:**
+2. **Ejecutar el pipeline completo con script unificado:**
    ```bash
+   python ejecutar_pipeline.py --todo
+   ```
+
+3. **Ejecutar solo el dashboard:**
+   ```bash
+   python ejecutar_pipeline.py --dashboard
+   # o directamente:
    streamlit run dashboards/app.py
    ```
 
@@ -90,30 +96,41 @@ El proyecto se encuentra en su estado final, con las siguientes funcionalidades 
 - **Datos geolocalizados**: Análisis por ubicación dentro de España para identificar tendencias regionales
 - **Estadísticas de contratos**: Análisis por tipo de contrato y modalidad de trabajo
 
-### 🚀 Uso
+### 🚀 Uso del Script Unificado
 
-#### Pipeline completo:
+El proyecto incluye un script unificado (`ejecutar_pipeline.py`) que facilita la ejecución de todo el flujo de trabajo:
+
+#### Pipeline completo (ETL + entrenamiento + dashboard):
 ```bash
-python main.py --all
+python ejecutar_pipeline.py --todo
+```
+
+#### Solo pipeline ETL:
+```bash
+python ejecutar_pipeline.py --etl
 ```
 
 #### Ejecutar dashboard interactivo:
 ```bash
-streamlit run dashboards/app.py
+python ejecutar_pipeline.py --dashboard
 ```
 
-#### Ejecución personalizada:
+#### Analizar datos procesados:
 ```bash
-python main.py --datos-reales --all    # Datos reales vía API
-python main.py --etl                   # Solo ETL
-python main.py --eda                   # Solo análisis exploratorio
-jupyter notebook notebooks/            # Abrir notebooks
+python ejecutar_pipeline.py --analizar
 ```
 
-#### Parámetros clave:
-- `--real-data`: Fuerza la descarga de datos reales desde APIs
-- `--force-mock=False`: Evita el uso de datos simulados
-- `--output-dir`: Ruta de salida (por defecto: `data/processed/`)
+#### Ejecutar pasos individuales:
+```bash
+python ejecutar_pipeline.py --generar-datos        # Generar datos simulados
+python ejecutar_pipeline.py --corregir-salarios     # Corregir salarios
+python ejecutar_pipeline.py --actualizar-metadatos  # Actualizar metadatos
+python ejecutar_pipeline.py --actualizar-ubicaciones # Actualizar ubicaciones
+python ejecutar_pipeline.py --entrenar-modelo       # Entrenar modelo
+```
+
+#### Parámetros adicionales:
+- `--puerto`: Especifica el puerto para el dashboard (por defecto: 8501)
 
 ---
 
@@ -152,23 +169,26 @@ El análisis del mercado laboral tecnológico español revela importantes hallaz
 - Existe una predominancia del trabajo remoto e híbrido frente al presencial tradicional
 - La combinación de datos reales (Adzuna, Jooble) e híbridos ha permitido un análisis más completo y representativo del mercado laboral español
 
-## 📡 Estado Final del Proyecto
+## 💪 Estado Final del Proyecto
 
 El proyecto ha alcanzado su estado final con todas las funcionalidades implementadas:
 
-- Dashboard interactivo completamente funcional
-- Datos híbridos procesados y estructurados correctamente
-- Modelo de predicción entrenado con buenos resultados
-- Visualizaciones dinámicas de tendencias tecnológicas
-- Pipeline ETL optimizado
+- Dashboard interactivo completamente funcional con más de 3300 ofertas de empleo
+- Datos híbridos (combinación de Adzuna, Jooble y simulados) procesados y estructurados correctamente
+- Todas las ofertas simuladas de España tienen ubicación correctamente asignada como "Spain"
+- No hay datos con fuente "API Real" (reemplazados por Adzuna/Jooble)
+- Todos los registros tienen salarios válidos y asignados
+- Modelo de predicción salarial entrenado y listo para usar en el dashboard
+- Visualizaciones dinámicas de tendencias tecnológicas actualizadas
+- Script unificado `ejecutar_pipeline.py` que facilita la ejecución de todo el flujo de trabajo
 - Sistema de filtrado por ubicación, tecnologías y tipo de contrato
 
 ---
 
-## 📦 Replicación y Entrega
+## 💾 Replicación y Entrega
 
 1. Clona el repositorio
-2. Ejecuta `python main.py --all`
+2. Ejecuta `python ejecutar_pipeline.py --todo`
 3. Visualiza los resultados con el dashboard
 4. Verifica visualizaciones, datos y predicciones
 5. Comprime y entrega la carpeta del proyecto
