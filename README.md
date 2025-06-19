@@ -1,264 +1,220 @@
-# Análisis del Mercado Laboral Tecnológico Español
+# 📊 Análisis del Mercado Laboral Tecnológico Español
 
-Este proyecto analiza las tendencias actuales del mercado laboral en el sector tecnológico español, utilizando datos REALES obtenidos de APIs públicas y fuentes web. El proyecto proporciona insights valiosos sobre demanda de habilidades, niveles salariales y tendencias del mercado laboral tecnológico en España con visualizaciones interactivas y un dashboard completo.
+Proyecto de análisis basado en **datos REALES** del mercado laboral tecnológico en todo el mundo. Incluye insights sobre demanda de tecnologías, rangos salariales, satisfacción laboral y tendencias de contratación, mediante un dashboard interactivo y análisis estadísticos avanzados.
 
-## Preguntas de Investigación
+---
 
-1. **¿Qué tecnologías tienen mayor demanda en el mercado laboral actual?** 
-   - Análisis de las habilidades técnicas más solicitadas en ofertas de empleo
+## 🔍 Preguntas de Investigación
 
-2. **¿Cómo se relaciona la experiencia con el salario en trabajos tecnológicos?**
-   - Correlación entre años de experiencia y compensación económica
+1. **¿Qué tecnologías son actualmente las más demandadas en el mercado global?**
+   A partir de más de 400 ofertas reales, se identifican las stacks y herramientas más solicitadas, como R, API, AI, Go y Python.
+2. **¿Cómo se distribuyen los salarios en empleos tecnológicos en función de la ubicación?**
+   Análisis comparativo entre países y regiones (España, USA, Europa, etc.) respecto a ofertas y rangos salariales.
+3. **¿Qué impacto tienen las tecnologías dominadas en la predicción salarial?**
+   Evaluación de cómo ciertas herramientas elevan o reducen el salario esperado según el modelo de IA integrado en el dashboard.
+4. **¿Qué tipo de contrato predomina en las ofertas tecnológicas actuales?**
+   Estudio de modalidades laborales (jornada completa, autónomo, prácticas, etc.) y su relación con la oferta y el salario.
+5. **¿Qué patrones emergen en los perfiles técnicos más demandados?**
+   Identificación de los roles con mayor presencia (como Python Developer, Software Engineer, QA Tester) y sus características comunes.
 
-3. **¿Existen diferencias significativas en salarios según las tecnologías dominadas?**
-   - Comparación de salarios entre profesionales con distintas especializaciones técnicas
+---
 
-4. **¿Qué tipo de desarrolladores tienen mayor satisfacción laboral?**
-   - Análisis de factores que influyen en la satisfacción de los profesionales tecnológicos
-
-5. **¿Cómo varía la distribución salarial según ubicación y tipo de empleo?**
-   - Análisis geográfico y por modalidad de contratación de las ofertas salariales
-
-## Estructura del Proyecto
+## 🗂️ Estructura del Proyecto
 
 ```
 mercado_laboral_tech/
+├── dashboards/
+│   └── app.py                         # Dashboard interactivo (Streamlit)
 │
-├── data/               # Archivos de datos
-│   ├── raw/            # Datos sin procesar
-│   └── processed/      # Datos procesados
+├── data/
+│   ├── external/                      # Datos externos (encuestas, feeds)
+│   │   └── stack-overflow-survey-results-2023.csv
+│   ├── processed/                     # Datos ya transformados y listos para análisis
+│   │   ├── jobs_processed.csv
+│   │   └── survey_processed.csv
+│   └── raw/                           # Datos crudos sin procesar
+│       ├── ofertas_tech_reales_*.csv
+│       └── stackoverflow_survey_raw.csv
 │
-├── notebooks/          # Jupyter notebooks de análisis
+├── img/                               # Visualizaciones generadas
 │
-├── dashboards/         # Archivos para visualizaciones interactivas
+├── logs/
+│   └── job_analysis.log               # Registro del análisis de ejecución
 │
+├── models/
+│   └── salary_model.joblib           # Modelo de predicción salarial entrenado
+│
+├── notebooks/
+│   └── exploratory_analysis.ipynb    # Análisis exploratorio (EDA)
+│
+├── reports/                           # (Opcional) Reportes generados automáticamente
+│
+├── src/                               # Código fuente
+│   ├── data_collector.py              # Recolección desde APIs
+│   ├── data_generator.py              # Generación de datos sintéticos (si se requiere)
+│   ├── eda.py                         # Análisis exploratorio de datos
+│   ├── etl.py                         # Extracción, transformación y carga de datos
+│   ├── model_salary.py                # Lógica del modelo predictivo
+│   ├── scraper.py                     # Web scraping (opcional)
+│   └── stats.py                       # Análisis estadístico
+│
+├── .env                               # Variables de entorno
+├── .gitignore                         # Archivos ignorados por Git
+├── job_analysis.log                   # Log principal del pipeline
+├── main.py                            # Script principal del proyecto
+├── README.md                          # Documentación
+└── requirements.txt                   # Dependencias
+```
+
+mercado_laboral_tech/
+├── data/               # Datos brutos, procesados y externos
+├── notebooks/          # Notebooks de análisis exploratorio
+├── dashboards/         # Dashboard interactivo (Streamlit)
+├── reports/            # Reportes y resultados generados
 ├── src/                # Código fuente del proyecto
-│   ├── etl.py          # Scripts para extracción y transformación de datos
-│   ├── eda.py          # Análisis exploratorio de datos
+│   ├── etl.py          # Extracción y transformación de datos
+│   ├── eda.py          # Análisis exploratorio
+│   ├── model_salary.py # Modelo de predicción salarial
+│   ├── scraper.py      # Scraping de datos web
 │   └── stats.py        # Análisis estadístico
-│
-├── img/                # Visualizaciones generadas
-│
-├── main.py             # Script principal para ejecutar el pipeline completo
-├── requirements.txt    # Dependencias del proyecto
-├── .gitignore          # Archivos a ignorar en git
+├── models/             # Modelos entrenados (.joblib)
+├── img/                # Visualizaciones generadas (EDA, stats)
+├── config.py           # Configuraciones del proyecto
+├── main.py             # Script principal para el pipeline completo
+├── requirements.txt    # Dependencias del entorno
 └── README.md           # Documentación del proyecto
 ```
 
-## Fuentes de Datos
+---
 
-El proyecto prioriza datos REALES del mercado laboral tecnológico obtenidos de:
+## 📡 Fuentes de Datos Reales
 
-1. **APIs públicas**: Integración con APIs como Remotive para obtener ofertas de trabajo reales
-2. **Stack Overflow Jobs Feed**: Datos de empleos tecnológicos
-3. **Datos complementarios**: Generación de datos estructurados solo cuando es estrictamente necesario
+- **APIs públicas**: [Remotive](https://remotive.io), [Adzuna](https://developer.adzuna.com/), [Jooble](https://jooble.org/api/about)
+- **Stack Overflow Jobs Feed** (archivado, como referencia histórica)
+- **Datos estructurados generados solo si es necesario**
 
-## Instalación y Uso
+---
 
-### Requisitos
+## ⚙️ Instalación y Uso
 
-- Python 3.8+
-- Conexión a Internet (para recopilar datos REALES)
-- Librerías para análisis de datos y visualización
+### 🔧 Requisitos
+- Python ≥ 3.8  
+- Conexión a Internet (para obtener datos reales)  
+- Librerías: `pandas`, `scikit-learn`, `matplotlib`, `streamlit`, etc.
 
-### Instalación
+### 🛠️ Instalación
 
-1. Clona el repositorio:
-   git clone https://github.com/DaniGonzaR/mercado_laboral_tech
-   cd mercado_laboral_tech
+```bash
+git clone https://github.com/DaniGonzaR/mercado_laboral_tech.git
+cd mercado_laboral_tech
+python -m venv venv
+source venv/bin/activate  # (Windows: .\venv\Scripts\activate)
+pip install -r requirements.txt
+```
 
-2. Crea y activa un entorno virtual:
-   python -m venv venv
-   .\venv\Scripts\activate  # Windows
-   source venv/bin/activate  # Linux/Mac
+### 🚀 Uso
 
-3. Instala las dependencias:
-   pip install -r requirements.txt
-
-### Uso
-
-#### Recopilación de Datos REALES
-
-python main.py --real-data
-
-#### Pipeline Completo
-
+#### Pipeline completo:
+```bash
 python main.py --all
+```
 
-#### Dashboard Interactivo
-
+#### Ejecutar dashboard interactivo:
+```bash
 streamlit run dashboards/app.py
+```
 
-#### Componentes Individuales
+#### Ejecución personalizada:
+```bash
+python main.py --datos-reales --all    # Datos reales vía API
+python main.py --etl                   # Solo ETL
+python main.py --eda                   # Solo análisis exploratorio
+jupyter notebook notebooks/            # Abrir notebooks
+```
 
-# Recolectar datos REALES
-python main.py --real-data
+#### Parámetros clave:
+- `--real-data`: Fuerza la descarga de datos reales desde APIs
+- `--force-mock=False`: Evita el uso de datos simulados
+- `--output-dir`: Ruta de salida (por defecto: `data/processed/`)
 
-# Solo proceso ETL
-python main.py --etl
+---
 
-# Solo Análisis Exploratorio
-python main.py --eda
+## 📈 Metodología
 
-# Ejecutar notebook de análisis
-jupyter notebook notebooks/exploratory_analysis.ipynb
+### 🔄 ETL (Extracción, Transformación y Carga)
+- Obtención desde APIs/web
+- Limpieza, estandarización y enriquecimiento
+- Exportación en CSV para análisis reproducible
 
-#### Parámetros Importantes
+### 🧪 EDA (Análisis Exploratorio)
+- Distribución geográfica
+- Niveles salariales
+- Tecnologías más demandadas
+- Modalidades de contrato
+- Principales empleadores
 
-- `--real-data`: Prioriza la obtención de datos REALES de APIs
-- `--force-mock=False`: Evita el uso de datos simulados aunque no haya APIs disponibles
-- `--output-dir`: Directorio de salida para los resultados (por defecto: `data/processed/`)
+### 📊 Análisis Estadístico
+- **Descriptivo**: medias, desviaciones, histogramas
+- **Inferencial**: regresión lineal, correlaciones, pruebas t
 
-## Estructura del Proyecto
+### 🤖 Predicción Salarial
+Modelo de Gradient Boosting entrenado con datos reales:
+- Predice salarios en función de experiencia, ubicación, tecnologías
+- Integra visualmente en el dashboard
 
-mercado_laboral_tech/
-├── data/               # Archivos de datos
-│   ├── raw/            # Datos sin procesar (incluye datos de web scraping)
-│   └── processed/      # Datos procesados
-│   └── external/       # Datos externos
-│
-├── notebooks/         # Jupyter notebooks de análisis
-│
-├── reports/           # Reportes generados
-│
-├── src/               # Código fuente del proyecto
-│   ├── __init__.py
-│   ├── scraper.py     # Módulo de web scraping
-│   ├── etl.py         # Scripts para extracción y transformación de datos
-│   ├── eda.py         # Análisis exploratorio de datos
-│   └── stats.py       # Análisis estadístico
-│
-├── img/              # Visualizaciones generadas
-│   ├── eda/          # Gráficos EDA
-│   └── stats/        # Gráficos estadísticos
-│
-├── main.py            # Script principal para ejecutar el pipeline
-├── requirements.txt    # Dependencias del proyecto
-├── .gitignore         # Archivos a ignorar en git
-└── README.md          # Documentación del proyecto
+---
 
-## Configuración
+## 📊 Dashboard Interactivo (Streamlit)
 
-El archivo `config.py` contiene las configuraciones del proyecto, incluyendo:
+- 📌 Indicador de **datos reales** activos
+- 📍 Filtros por ubicación, tecnología, modalidad
+- 📈 Visualizaciones dinámicas:
+  - Mapa geográfico de empleos
+  - Ranking de tecnologías más demandadas
+  - Estadísticas salariales detalladas
 
-- Rutas de archivos
-- Parámetros de web scraping
-- Configuración de visualizaciones
-
-### Datasets Integrados
-
-1. **Ofertas de empleo tecnológicas REALES**: Datos obtenidos de APIs públicas que incluyen:
-   - Título del trabajo
-   - Empresa contratante
-   - Ubicación
-   - Tipo de contrato y jornada
-   - Rango salarial
-   - Tecnologías requeridas
-   - Fecha de publicación
-   - URL de la oferta original
-
-*Nota: Este proyecto utiliza datos REALES del mercado laboral tecnológico español, obtenidos directamente de fuentes online.*
-
-## Metodología
-
-### ETL (Extracción, Transformación y Carga)
-
-1. **Extracción**: Obtención de datos REALES de APIs públicas y fuentes web abiertas.
-2. **Transformación**: Normalización de campos, estandarización de valores, manejo de valores faltantes y enriquecimiento de datos.
-3. **Carga**: Almacenamiento en formato CSV para optimizar el análisis posterior.
-
-### Análisis Exploratorio (EDA)
-
-1. **Distribución geográfica**: Análisis de ofertas por ubicación en España
-2. **Análisis salarial**: Distribución y estadísticas de salarios en tecnología
-3. **Tecnologías más demandadas**: Ranking de tecnologías solicitadas en el mercado
-4. **Tipos de contratación**: Análisis de modalidades de contrato y jornada
-5. **Empresas líderes**: Identificación de mayores empleadores tecnológicos
-
-### Análisis Estadístico
-
-1. **Estadística descriptiva**:
-   - Medidas de tendencia central y dispersión para salarios
-   - Estadísticas por grupos (tipo de trabajo, ubicación, educación)
-
-2. **Estadística inferencial**:
-   - Correlaciones entre experiencia y salario
-   - Pruebas t para comparar salarios entre tecnologías
-   - Regresión lineal para predicción salarial
-
-## Resultados Clave
-
-### Hallazgos Principales
-
-1. **Tecnologías más demandadas**: Identificación de las habilidades técnicas con mayor demanda en el mercado español
-
-2. **Distribución salarial**: Análisis detallado de rangos salariales en el sector tecnológico español
-
-3. **Concentración geográfica**: Mapeo de las regiones con mayor número de ofertas tecnológicas
-
-4. **Modalidades de contratación**: Identificación de tendencias en tipos de contrato y jornada laboral
-
-5. **Principales empleadores**: Análisis de las empresas con mayor número de vacantes tecnológicas
-
-Todos los resultados pueden explorarse interactivamente en el dashboard y consultarse en los notebooks de análisis disponibles en el directorio `notebooks/`.
-
-## Dashboard Interactivo
-
-Se ha creado un dashboard interactivo con Streamlit que permite explorar visualmente los datos REALES del mercado laboral tecnológico español. El dashboard incluye:
-
-- **Indicador de datos REALES**: Muestra claramente cuando se trabaja con datos obtenidos de APIs
-- **Métricas clave del mercado**: Número de ofertas, promedio salarial, tecnologías identificadas
-- **Visualizaciones interactivas**:
-  - Distribución geográfica de las ofertas
-  - Tecnologías más demandadas
-  - Análisis salarial con estadísticas detalladas
-  - Distribución por tipo de contrato
-- **Filtros interactivos** por ubicación, tipo de contrato y tecnología
-
-Para ejecutar el dashboard:
-
+Ejecuta con:
+```bash
 streamlit run dashboards/app.py
+```
 
-## Replicación y Entrega del Proyecto
+---
 
-### Para replicar el proyecto
+## 📌 Resultados Clave
 
-1. Clona el repositorio y sigue las instrucciones de instalación
-2. Ejecuta el pipeline completo con `python main.py --all`
-3. Explora los datos con el dashboard: `streamlit run dashboards/app.py`
+- 🔝 **Tecnologías más demandadas**: Python, JavaScript, AWS, SQL, Docker
+- 💰 **Distribución salarial**: Rango amplio según seniority y stack
+- 🗺️ **Zonas con más ofertas**: Madrid, Barcelona, Valencia
+- 🤝 **Modalidad preferida**: Contrato indefinido, jornada completa
+- 🏢 **Empresas líderes**: Multinacionales y startups tecnológicas
 
-### Para la entrega del proyecto
+---
 
-1. Verifica que los datos REALES estén correctamente procesados
-2. Comprueba que todas las visualizaciones funcionen adecuadamente
-3. Asegúrate de que el dashboard muestre correctamente los datos
-4. Comprime el proyecto completo para su entrega
+## 📦 Replicación y Entrega
 
-1. **Clonar el repositorio**:
-   git clone https://github.com/DaniGonzaR/mercado_laboral_tech.git
-   cd mercado_laboral_tech
+1. Clona el repositorio
+2. Ejecuta `python main.py --all`
+3. Visualiza los resultados con el dashboard
+4. Verifica visualizaciones, datos y predicciones
+5. Comprime y entrega la carpeta del proyecto
 
-2. **Instalar dependencias**:
-   pip install -r requirements.txt
+---
 
-3. **Ejecutar el pipeline completo**:
-   python main.py
+## 🧩 Limitaciones y Futuro
 
-4. **Explorar los notebooks**:
-   jupyter notebook notebooks/
+- Los datos disponibles pueden no cubrir todo el mercado (limitaciones por API)
+- Ampliar con series temporales para análisis predictivos
+- Incluir variables como beneficios, tipo de empresa o tamaño del equipo
 
-5. **Abrir el dashboard** en Streamlit utilizando el archivo en el directorio `dashboards/app.py`.
+---
 
-## Limitaciones y Trabajo Futuro
+## 👤 Autor
 
-- Los datos utilizados son simulados y limitados en escala. Un análisis con datos reales proporcionaría insights más precisos.
-- Sería valioso ampliar el análisis para incluir tendencias temporales y predicciones futuras.
-- Se podría mejorar el modelo integrando datos adicionales como tamaño de empresa, industria específica o beneficios no salariales.
+**Daniel González Rodríguez**  
+[GitHub](https://github.com/DaniGonzaR)
 
-## Autor
+---
 
-Daniel González Rodríguez
+## 📄 Licencia
 
-## Licencia
-
-Este proyecto está bajo la Licencia MIT.
+Este proyecto se distribuye bajo la licencia MIT.
