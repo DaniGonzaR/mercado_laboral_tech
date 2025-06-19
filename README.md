@@ -1,20 +1,20 @@
-# 📊 Análisis del Mercado Laboral Tecnológico Español
+# 📊 Análisis del Mercado Laboral Tecnológico Mundial
 
-Proyecto de análisis basado en **datos HÍBRIDOS** del mercado laboral tecnológico en España. Incluye insights sobre demanda de tecnologías, rangos salariales, y tendencias de contratación, mediante un dashboard interactivo y un modelo de predicción de salarios basado en machine learning.
+Proyecto de análisis basado en **datos HÍBRIDOS** del mercado laboral tecnológico mundial. Incluye insights sobre demanda de tecnologías, rangos salariales, y tendencias de contratación, mediante un dashboard interactivo y un modelo de predicción de salarios basado en machine learning.
 
 ---
 
 ## 🔍 Preguntas de Investigación
 
-1. **¿Qué tecnologías son actualmente las más demandadas en el mercado español?**
+1. **¿Qué tecnologías son actualmente las más demandadas en el mercado global?**
    A partir de más de 3300 ofertas híbridas, se identifican las tecnologías más solicitadas, como Python, JavaScript, React, Java y tecnologías cloud.
-2. **¿Cómo se distribuyen los salarios en empleos tecnológicos en España?**
+2. **¿Cómo se distribuyen los salarios en empleos tecnológicos en el mundo?**
    Análisis de rangos salariales por ubicación (Madrid, Barcelona, Valencia, etc.) y nivel de experiencia.
 3. **¿Qué impacto tienen las tecnologías en la predicción salarial?**
    Evaluación mediante un modelo de machine learning integrado en el dashboard que identifica las tecnologías con mayor impacto en el salario.
-4. **¿Qué tipo de contrato predomina en las ofertas tecnológicas españolas?**
+4. **¿Qué tipo de contrato predomina en las ofertas tecnológicas en el mundo?**
    Estudio de modalidades laborales (indefinido, temporal, remoto, híbrido) y su relación con la oferta y el salario.
-5. **¿Cuál es la distribución geográfica de las ofertas tecnológicas en España?**
+5. **¿Cuál es la distribución geográfica de las ofertas tecnológicas en el mundo?**
    Análisis de la concentración de ofertas por ciudades y regiones.
 
 ---
@@ -46,9 +46,9 @@ mercado_laboral_tech/
 
 ## 💻 Fuëntes de Datos
 
-- **Datos híbridos**: Combinación de datos reales y simulados para el mercado español
+- **Datos híbridos**: Combinación de datos reales y simulados para el mercado mundial
 - **APIs de empleo**: [Adzuna](https://developer.adzuna.com/) y [Jooble](https://jooble.org/api/about)
-- **Datos simulados**: Generados para complementar y enriquecer el análisis con ofertas relevantes para España
+- **Datos simulados**: Generados para complementar y enriquecer el análisis con ofertas relevantes para el mundo
 
 ---
 
@@ -58,7 +58,7 @@ mercado_laboral_tech/
 
 El proyecto se encuentra en su estado final, con las siguientes funcionalidades implementadas:
 
-- **Dashboard interactivo**: Visualización de más de 3300 ofertas de empleo tecnológico en España
+- **Dashboard interactivo**: Visualización de más de 3300 ofertas de empleo tecnológico en el mundo
 - **Datos híbridos**: Combinación de datos reales de Adzuna y Jooble con datos simulados de alta calidad
 - **Predicción de salarios**: Modelo de machine learning entrenado que predice salarios basado en ubicación, tecnologías y tipo de contrato
 - **Análisis de tendencias**: Visualización de tecnologías más demandadas, distribución geográfica y tipos de contrato predominantes
@@ -93,7 +93,7 @@ El proyecto se encuentra en su estado final, con las siguientes funcionalidades 
 - **Visualización interactiva**: Dashboard completo con filtros, gráficos dinámicos y tabla de datos detallados
 - **Predicción de salarios**: Modelo de machine learning entrenado con métricas de rendimiento (MAE, R²)
 - **Análisis de tecnologías**: Identificación y conteo de tecnologías mencionadas en ofertas de empleo
-- **Datos geolocalizados**: Análisis por ubicación dentro de España para identificar tendencias regionales
+- **Datos geolocalizados**: Análisis por ubicación mundial para identificar tendencias regionales
 - **Estadísticas de contratos**: Análisis por tipo de contrato y modalidad de trabajo
 
 ### 🚀 Uso del Script Unificado
